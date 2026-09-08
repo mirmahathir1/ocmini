@@ -1,7 +1,7 @@
 # ocmini — Project Specification
 
 A minimal Python coding agent that reproduces the working behaviour of opencode
-running on a single fixed model: **Meta Muse Spark 1.3**.
+running on a single fixed model: **OpenAI GPT-5.6**.
 
 ---
 
@@ -9,8 +9,8 @@ running on a single fixed model: **Meta Muse Spark 1.3**.
 
 Build `ocmini`, a terminal coding agent in Python that can be used in place of opencode
 for real work, with the model choice removed as a variable. Anything that could be done
-by opening opencode, selecting `meta/muse-spark-1.3`, and typing a request must be
-achievable with `ocmini`.
+by opening opencode, selecting `openai/gpt-5.6`, and typing a request must be achievable
+with `ocmini`.
 
 "Minimal" here means **narrow, not weak**. The project earns its simplicity by deleting
 configurability — one provider, one model, one wire format, one prompt — not by deleting
@@ -34,18 +34,17 @@ acceptance task fail, the cut was wrong.
 | Web fetch and web search grounding | §4.6 |
 | Task list tracking | §4.7 |
 | Sub-agent delegation | §4.8 |
-
 | Context compaction near the window limit | §5 |
 | Permission gating for writes, shell, and network | §6 |
 | Project rule loading (`AGENTS.md` or equivalent) | |
-| Slash commands, including user-defined ones | |
 | Token and cost accounting | |
 
 ### 2.2 Out of scope
 
-Deliberately cut. None of these change *what* can be accomplished, only how comfortably.
+Deliberately cut.
 
-- Multi-provider support, model picker, model catalogue.
+- Multi-provider support, model picker, model catalogue. One base URL, one key, one
+  model id in configuration (§3.1) is not provider abstraction and does not reopen this.
 - Full-screen TUI: panes, mouse support, themes, vim keybindings.
 - LSP integration and language-aware diagnostics.
 - MCP client support *(optional stretch goal — not required for completion)*.
@@ -53,51 +52,83 @@ Deliberately cut. None of these change *what* can be accomplished, only how comf
 - Plugin system and user-registered custom tools.
 - IDE extensions.
 - Orchestration beyond a single level of sub-agent delegation.
-- Session persistence, listing, and resume
-- File checkpoints and revert
-- Image input | Muse Spark is multimodal; screenshots and diagrams are common inputs
+- Slash commands, built-in or user-defined. The agent is driven by natural-language
+  prompts alone; anything a command would have exposed is either a CLI flag or nothing.
+- Session persistence, listing, and resume. Each run starts with an empty conversation and
+  keeps it in memory only.
+- File checkpoints and revert. The working tree is protected by version control, not by
+  ocmini.
+- Image input. GPT-5.6 accepts images, but ocmini sends text only.
 
 ---
 
 ## 3. Fixed platform
 
-The entire project rests on these facts about Muse Spark 1.3 and the Meta Model API.
-**Verify every row against the live API before building anything else.** The model
-shipped in September 2026 and public write-ups already disagree on details — notably the
-base URL, where sources show both `api.meta.ai/v1` and `api.ai.meta.com/v1`.
+The entire project rests on these facts about GPT-5.6 and the OpenAI API. **Verify every
+row against the live API before building anything else** — the figures below were taken
+from OpenAI's published documentation in September 2026, and third-party write-ups already
+disagree with them, mostly because they predate a price cut.
 
 | Property | Value |
 |---|---|
-| Model id | `muse-spark-1.3` |
-| Provider | Meta Model API, OpenAI-SDK compatible |
-| Endpoints | `/v1/responses` and `/v1/chat/completions` |
-| Context window | 1,000,000 tokens |
-| Max output | ~131,072 tokens |
-| Input modalities | Text, image, video, PDF |
-| Reasoning effort | minimal · low · medium · high · xhigh — **cannot be disabled** |
-| `max` reasoning mode | Gated to partners pending safety testing; do not depend on it |
+| Model id | `gpt-5.6` (alias routing to `gpt-5.6-sol`) |
+| Provider | OpenAI, sole runtime provider |
+| Base URL | `https://api.openai.com/v1` |
+| Auth | `OPENAI_API_KEY` from the environment |
+| Endpoints | `/v1/responses` — **required**, see below — and `/v1/chat/completions` |
+| Context window | 1,050,000 tokens (≤ 922,000 input) |
+| Max output | 128,000 tokens |
+| Input modalities | Text, image — ocmini uses text only (§2.2) |
+| Reasoning effort | none · low · medium (default) · high · xhigh · max |
 | Tool calling | Function calling, parallel calls, streamed |
-| `tool_choice` | Only `auto` is reliably honoured |
-| Stop sequences | Unsupported |
 | Structured output | JSON-schema-guaranteed |
-| Prompt caching | Supported, billed at a reduced input rate |
-| Web search | Built-in server-side tool with citations |
-| Pricing | $1.25 / 1M input · $0.15 / 1M cached input · $4.25 / 1M output |
+| Prompt caching | Supported; cached input at 10% of input, cache writes at 1.25× |
+| Web search | Built-in server-side tool |
+| Pricing (≤ 272K input) | $4.00 / 1M input · $0.40 / 1M cached · $20.00 / 1M output |
+| Pricing (> 272K input) | $8.00 / 1M input · $0.80 / 1M cached · $30.00 / 1M output |
 
-Three consequences worth settling early, because each one is easy to get subtly wrong and
+Four consequences worth settling early, because each one is easy to get subtly wrong and
 hard to notice afterwards:
 
-- **Reasoning continuity.** The Responses endpoint is the only one that carries reasoning
-  across turns. If reasoning state is not preserved between tool calls, everything still
-  appears to work — the agent just becomes measurably worse at multi-step edits. Whatever
-  approach you take, prove it with a side-by-side comparison on a five-turn task.
+- **Reasoning continuity requires the Responses endpoint.** Reasoning is not supported on
+  Chat Completions at all. On Responses, reasoning state carries across turns either by
+  `previous_response_id` or, with `store: false`, by passing back the reasoning items'
+  `encrypted_content`. OpenAI's own guidance is to return the reasoning items alongside
+  each function-call result. Get this wrong and everything still appears to work — the
+  agent just becomes measurably worse at multi-step edits. Build on `/v1/responses` and
+  prove continuity with a side-by-side comparison on a five-turn task.
+- **The long-context cliff is a real cost trap.** Crossing 272,000 input tokens reprices
+  **the entire request** at 2× input and 1.5× output — not just the excess. A single
+  verbose tool result can push a turn over the line and double the cost of everything
+  before it. This is a budget argument for §4.9's output caps and for compacting well
+  before the window is technically full (§5).
 - **Prompt caching depends on a stable prefix.** Anything volatile near the front of the
-  request (a timestamp, a changing environment block) silently forfeits the 8× discount on
-  input tokens.
-- **The model is trained to collaborate.** Muse Spark 1.3 asks clarifying questions on
-  ambiguous prompts and confirms before consequential actions. There must be a clean path
-  for a question to reach the user and an answer to return — and a defined policy for what
-  happens when it asks during a non-interactive run (§7.6).
+  request (a timestamp, a changing environment block) silently forfeits the 10× discount
+  on input tokens. Assert prefix stability in tests and watch the cached-token counts.
+- **Reasoning tokens are billed as output and consume the context budget** even though
+  they are never displayed. Cost and context accounting that ignores them will understate
+  both. At `high` and above this is the dominant cost term, which makes the effort setting
+  the main lever in §9's cost-overrun mitigation.
+
+### 3.1 Pricing is dated; the wire format is not
+
+Two of the rows above are dated facts rather than stable ones, and both are cheap to fix
+if they move.
+
+- **The $4 / $20 rate is promotional**, published as holding at least through
+  **21 November 2026**. It is already a cut from an earlier $5 / $30, which is why older
+  write-ups disagree. The §7 budgets are denominated in dollars at the current rate; if
+  the promotional pricing lapses, re-check the budgets before treating a failure against
+  them as a defect.
+- **`gpt-5.6` is an alias.** It currently routes to `gpt-5.6-sol` and will be repointed by
+  OpenAI at some future model. That is usually desirable, but it means an unannounced
+  behaviour change is possible. Pin `gpt-5.6-sol` explicitly for acceptance runs so that a
+  §7.5 regression is attributable, and record the resolved model id in the run log.
+
+The provider is one base URL, one key, and one model id read from configuration. Nothing
+else in the agent may assume OpenAI specifically — not because a second provider is
+planned (§2.2 cuts that), but because this is what keeps a repricing or an alias move to a
+one-line change.
 
 ---
 
@@ -107,8 +138,8 @@ Requirements, not designs. Each tool needs a name, a description written for the
 rather than for humans, and a schema the model can call reliably.
 
 **4.1 Read** — line-addressable, with offset and limit. Caps the amount returned and says
-so explicitly when it truncates. Returns images as images. Refuses binaries with a clear
-message rather than dumping bytes.
+so explicitly when it truncates. Refuses binaries — images included — with a clear message
+rather than dumping bytes.
 
 **4.2 Write** — creates files and parent directories, reports what changed as a diff
 summary, and refuses to blindly overwrite a file the session has not read.
@@ -155,7 +186,8 @@ a dropped result breaks the next request. Silent truncation is a bug.
 - A compaction must preserve: files touched, decisions made, outstanding todos, currently
   failing tests, and any constraint the user stated. Losing user constraints during
   compaction is the failure mode that turns a long session into wasted money.
-- Enough history must survive compaction for checkpoints and revert to remain coherent.
+- Compaction is the only history-shortening mechanism; there is no checkpoint to fall back
+  on, so a compaction that drops something is unrecoverable.
 
 ---
 
@@ -191,6 +223,10 @@ they exercise. Each is a directory containing a prompt, a fixture tree, and a ch
 exits non-zero on failure. The verification for T1 in particular should be written blind —
 graded against the prompt, not against whatever the agent happened to produce.
 
+T4's fixture already exists at `fixtures/t4-taskbook/` and is committed to this repository.
+It is a working application with a green test suite, not a sketch: keep it that way, and
+run every acceptance attempt against a copy.
+
 ### 7.1 T1 — Greenfield build (the headline criterion)
 
 **Setup:** empty directory, network available, permissions auto-approved.
@@ -216,7 +252,8 @@ the model):
    `--json` emitting valid JSON with no stray output on stdout.
 4. A README exists and every command shown in it actually runs.
 5. Nothing outside the working directory was modified.
-6. Completed within **40 assistant turns** and **$4.00** of API spend.
+6. Completed within **40 assistant turns** and **$4.00** of API spend, measured at the
+   §3 rates and counting reasoning tokens as the billed output they are.
 7. No unhandled exception in `ocmini` itself; the run exits 0.
 
 ### 7.2 T2 — Brownfield debugging
@@ -246,44 +283,80 @@ pass; the run uses sub-agent delegation or the task list at least once, showing 
 long-horizon machinery is live; ≤ 60 turns; ≤ $6.00. Re-run with the compaction threshold
 forced low — the task must still complete.
 
-### 7.4 T4 — Self-hosting
+### 7.4 T4 — Feature work in an existing codebase
 
-Run `ocmini` against the `ocmini` repository itself:
+The only task where the agent modifies code it did not write. T1 and T3 are greenfield and
+T2 is bug-fixing; neither exercises adding a feature that has to fit conventions already
+in the repository.
 
-> Add a `/stats` slash command that prints, for the current session: total turns, tool
-> calls broken down by tool name, tokens in, out, and cached, and total cost. Add tests.
+**Setup:** a copy of `fixtures/t4-taskbook/` — a working 350-line task-tracker CLI over
+five modules, with a 45-test suite that is **green before the run**. Standard library
+only, no install step. Copy it to a scratch directory; never run the task against the
+fixture in place, or a failed run leaves the fixture dirty for the next one.
 
-**Pass:** the feature works after restarting the session; new tests pass; the **entire
-existing suite** still passes; ≤ 25 turns.
+Confirm the starting state before grading anything:
 
-This is the criterion that actually matters. It demonstrates the tool is good enough to
-maintain itself, which is the same bar as "good enough to use instead of opencode."
+    python -m unittest discover -s tests -t .    # 45 tests, OK
+
+**Prompt** (verbatim, single message):
+
+> Add due dates to taskbook. `add` takes an optional `--due YYYY-MM-DD`; a new `due`
+> command sets or clears the due date on an existing task. Due dates show in the task
+> listing, and overdue tasks are visibly marked. `list` takes `--overdue` to show only
+> tasks that are past due. Sorting puts overdue tasks first, then tasks due soonest, and
+> tasks with no due date last — all still within the existing open-before-done ordering.
+> Update the README and add tests.
+
+**Pass criteria — all must hold:**
+
+1. The feature works end to end from the command line.
+2. **The 45 pre-existing tests still pass, unmodified.** Any edit to a file under `tests/`
+   that existed before the run is a failure, whatever the reason. The suite is the
+   regression contract; an agent that "fixes" a failing test by changing the test has
+   failed the task.
+3. New tests cover the feature and pass.
+4. The hidden verification suite passes — roughly 15 tests over the stated behaviour plus
+   four cases the prompt implies but does not spell out: a malformed `--due` value exits
+   non-zero with a readable message rather than a traceback; a task due today is not
+   overdue; a completed task is never reported overdue however old its due date; and a
+   store written before this feature existed still loads, its tasks simply having no due
+   date.
+5. Conventions are followed rather than worked around — user-facing failures raised as
+   `TaskError`, rendering returning strings rather than printing, the new subcommand
+   registered the way the others are. Graded by reading the diff.
+6. `README.md` documents the new flag and command, and every command shown in it runs.
+7. ≤ 25 turns and ≤ $3.00.
+
+Point 4 is the part that separates a real implementation from a plausible one, and point 2
+is the part that catches an agent taking the easy way out.
 
 ### 7.5 Standing conditions
 
 - Unit and integration suites green, with meaningful coverage of the agent loop, tool
   execution, permission decisions, and compaction.
-- `--help` and the README describe every flag and command that exists, and nothing that
-  does not.
+- `--help` and the README describe every flag that exists, and nothing that does not.
 - **Three consecutive T1 runs pass.** A one-in-three success rate is not a passing agent,
   it is a lucky one. When T1 is flaky, the cause is almost always tool error messages or
   the system prompt rather than the loop itself.
-- No lost session on crash: killing the process mid-turn and resuming recovers the
-  conversation and leaves the working tree in a recoverable state.
+- Killing the process mid-turn leaves the working tree in a state version control can
+  explain: no half-written files, no orphaned temporary artefacts. The conversation is
+  lost by design, and that is acceptable.
 
 ### 7.6 Non-interactive question policy
 
-Muse Spark 1.3 will sometimes ask rather than proceed. Define one policy and hold to it:
+A reasoning model will sometimes ask rather than proceed — GPT-5.6 does this on ambiguous
+prompts and before consequential actions. Define one policy and hold to it:
 the question is surfaced, the run continues with an instruction to use best judgement, and
 a run that stalls waiting for input counts as a **failure** of whichever acceptance task it
 occurred in. An agent that hangs unattended is not finished.
 
 ### 7.7 Parity check (report, not a gate)
 
-Run T1–T3 under real opencode with `meta/muse-spark-1.3` and record turns, cost, and
-wall-clock time. `ocmini` is expected to be worse; document the gap with a one-line cause
-for each. If `ocmini` fails a task opencode passes, that is a defect against this spec —
-amend the spec, then fix the code.
+Run T1–T3 under real opencode with `openai/gpt-5.6` — the same provider and model this
+project targets, which makes the comparison a clean test of the harness rather than of the
+model — and record turns, cost, and wall-clock time. `ocmini` is expected to be worse;
+document the gap with a one-line cause for each. If `ocmini` fails a task opencode
+passes, that is a defect against this spec — amend the spec, then fix the code.
 
 ---
 
@@ -293,15 +366,14 @@ Not binding, but each phase ends with a gate worth having.
 
 | Phase | Deliverable | Gate |
 |---|---|---|
-| 1 | API spike: one streamed call with one tool | Every row of §3 confirmed or corrected in this document; parallel tool calls observed live |
-| 2 | Model calls, streaming, session persistence | Reasoning continuity proven across a multi-turn tool conversation |
+| 1 | API spike: one streamed call with one tool | Every row of §3 confirmed or corrected in this document; parallel tool calls observed live; 429 behaviour observed and backoff written |
+| 2 | Model calls on `/v1/responses`, streaming, in-memory conversation state | Reasoning continuity proven across a multi-turn tool conversation, with reasoning items returned alongside each tool result |
 | 3 | Read-only tools inside a working loop | Agent can answer questions about a codebase without writing anything |
 | 4 | Write, edit, shell, permissions | **T1 passes** |
-| 5 | Interactive session, rendering, abort, slash commands, cost display | A 20-minute session with no crash; abort works mid-command |
-| 6 | Checkpoints, revert, resume | Kill mid-turn, resume, revert restores the tree exactly |
-| 7 | Compaction, task list, sub-agents, project rules | **T2 passes**; forced-threshold compaction test passes |
-| 8 | Network tools, images, machine-readable output | **T3 passes** |
-| 9 | Hardening: error text, retries, truncation, docs | **T4 passes**; §7.5 satisfied |
+| 5 | Interactive session, rendering, abort, cost display | A 20-minute session with no crash; abort works mid-command |
+| 6 | Compaction, task list, sub-agents, project rules | **T2 passes**; forced-threshold compaction test passes |
+| 7 | Network tools, machine-readable output | **T3 passes** |
+| 8 | Hardening: error text, retries, truncation, docs | **T4 passes**; §7.5 satisfied |
 
 ---
 
@@ -313,5 +385,8 @@ Not binding, but each phase ends with a gate worth having.
 | Reasoning continuity handled wrong → quietly weaker agent | Explicit phase-2 gate comparing with and against |
 | Vague edit-failure messages → the agent flails and burns turns | Treat tool error text as a product surface; T2 detects it |
 | Acceptance tasks drift toward what the code already does | Write the verification blind, before the tools exist |
-| Development cost overruns | Lower reasoning effort for routine work, reserve high and xhigh for acceptance runs and hard debugging |
+| Promotional pricing lapses or the `gpt-5.6` alias is repointed | §3.1 pins `gpt-5.6-sol` for acceptance runs and confines the provider to a base URL, a key, and a model id |
+| A verbose turn crosses 272K input tokens and reprices the whole request | §4.9 output caps; compact well before the window fills; assert the threshold is never crossed during acceptance runs |
+| Rate limits throttle the acceptance runs | Backoff with jitter from phase 1; treat 429 as expected, and watch for it during the three consecutive T1 runs |
+| Development cost overruns | Reasoning effort is the dominant cost lever: keep routine work low, reserve high and xhigh for acceptance runs and hard debugging |
 | Prompt-cache misses from a volatile prefix | Assert prefix stability in tests; watch cached-token counts in the cost display |
