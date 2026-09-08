@@ -27,7 +27,7 @@ acceptance task fail, the cut was wrong.
 
 | Capability | Notes |
 |---|---|
-| Interactive terminal session | Readline-grade input, streaming output |
+| Interactive terminal session | Readline-grade input |
 | One-shot non-interactive run | Needed for scripting and for the acceptance harness |
 | Visible tool activity | The user can see what the agent is doing as it happens |
 | File reading, writing, and targeted editing | §4.1–4.3 |
@@ -87,7 +87,7 @@ free tier launched on 2 September 2026 and is still moving.
 | Max output | 131,072 tokens |
 | Input modalities | Text, image, and more — ocmini uses text only (§2.2) |
 | Reasoning effort | minimal · low · medium · high · xhigh |
-| Tool calling | Function calling, parallel calls, streamed |
+| Tool calling | Function calling, parallel calls |
 | Structured output | JSON-schema-guaranteed |
 | Prompt caching | Supported, at zero cost on this tier |
 | Web search | **Unconfirmed** — see §4.6 |
@@ -387,8 +387,8 @@ Not binding, but each phase ends with a gate worth having.
 
 | Phase | Deliverable | Gate |
 |---|---|---|
-| 1 | API spike: one streamed call with one tool | Every row of §3 confirmed or corrected in this document — model id, endpoint, reasoning-continuity mechanism, and whether web search exists; parallel tool calls observed live; 429 `FreeUsageLimitError` behaviour observed and backoff written |
-| 2 | Model calls on `/responses`, streaming, in-memory conversation state | Reasoning continuity proven across a multi-turn tool conversation, with reasoning items returned alongside each tool result |
+| 1 | API spike: one call with one tool | Every row of §3 confirmed or corrected in this document — model id, endpoint, reasoning-continuity mechanism, and whether web search exists; parallel tool calls observed live; 429 `FreeUsageLimitError` behaviour observed and backoff written |
+| 2 | Model calls on `/responses`, in-memory conversation state | Reasoning continuity proven across a multi-turn tool conversation, with reasoning items returned alongside each tool result |
 | 3 | Read-only tools inside a working loop | Agent can answer questions about a codebase without writing anything |
 | 4 | Write, edit, shell, permissions | **T1 passes** |
 | 5 | Interactive session, rendering, abort, token display | A 20-minute session with no crash; abort works mid-command |
