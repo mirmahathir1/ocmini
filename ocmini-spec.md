@@ -1,7 +1,9 @@
 # ocmini — Project Specification
 
 A minimal Python coding agent that reproduces the working behaviour of opencode
-running on a single fixed model: **OpenAI GPT-5.6**.
+running on a single fixed model: **Muse Spark 1.3 Contributor Free**, served by opencode
+zen. The Contributor Free variant — not the paid Muse Spark 1.3 listing — is the target,
+and that choice carries conditions on both cost and confidentiality (§3.1).
 
 ---
 
@@ -9,8 +11,8 @@ running on a single fixed model: **OpenAI GPT-5.6**.
 
 Build `ocmini`, a terminal coding agent in Python that can be used in place of opencode
 for real work, with the model choice removed as a variable. Anything that could be done
-by opening opencode, selecting `openai/gpt-5.6`, and typing a request must be achievable
-with `ocmini`.
+by opening opencode, selecting `opencode/muse-spark-1.3-contributor-free`, and typing a
+request must be achievable with `ocmini`.
 
 "Minimal" here means **narrow, not weak**. The project earns its simplicity by deleting
 configurability — one provider, one model, one wire format, one prompt — not by deleting
@@ -37,7 +39,7 @@ acceptance task fail, the cut was wrong.
 | Context compaction near the window limit | §5 |
 | Permission gating for writes, shell, and network | §6 |
 | Project rule loading (`AGENTS.md` or equivalent) | |
-| Token and cost accounting | |
+| Token and quota accounting | Tokens, including reasoning tokens, and remaining-quota signals; tokens are free on this tier (§3) so the display is denominated in tokens, not dollars |
 
 ### 2.2 Out of scope
 
@@ -58,77 +60,91 @@ Deliberately cut.
   keeps it in memory only.
 - File checkpoints and revert. The working tree is protected by version control, not by
   ocmini.
-- Image input. GPT-5.6 accepts images, but ocmini sends text only.
+- Image input. Muse Spark 1.3 accepts images, but ocmini sends text only.
 
 ---
 
 ## 3. Fixed platform
 
-The entire project rests on these facts about GPT-5.6 and the OpenAI API. **Verify every
-row against the live API before building anything else** — the figures below were taken
-from OpenAI's published documentation in September 2026, and third-party write-ups already
-disagree with them, mostly because they predate a price cut.
+The entire project rests on these facts about Muse Spark 1.3 **Contributor Free** and the
+opencode zen API. Zen lists two Muse Spark 1.3 variants; ocmini targets the Contributor
+Free one, and every figure below is that variant's.
+
+**Verify every row against the live API before building anything else** — the figures below
+were taken from opencode zen's published documentation and third-party write-ups in
+September 2026, and they already disagree with each other in places, mostly because the
+free tier launched on 2 September 2026 and is still moving.
 
 | Property | Value |
 |---|---|
-| Model id | `gpt-5.6` (alias routing to `gpt-5.6-sol`) |
-| Provider | OpenAI, sole runtime provider |
-| Base URL | `https://api.openai.com/v1` |
-| Auth | `OPENAI_API_KEY` from the environment |
-| Endpoints | `/v1/responses` — **required**, see below — and `/v1/chat/completions` |
-| Context window | 1,050,000 tokens (≤ 922,000 input) |
-| Max output | 128,000 tokens |
-| Input modalities | Text, image — ocmini uses text only (§2.2) |
-| Reasoning effort | none · low · medium (default) · high · xhigh · max |
+| Variant | **Contributor Free** — the free tier, not the paid Muse Spark 1.3 listing |
+| Model id | `muse-spark-1.3-contributor-free`, addressed in config as `opencode/muse-spark-1.3-contributor-free` |
+| Provider | opencode zen, sole runtime provider (the model itself is Meta's) |
+| Base URL | `https://opencode.ai/zen/v1` |
+| Auth | opencode zen API key from the environment |
+| Endpoints | `/responses` — **required**, see below; `/chat/completions` is not available for this model |
+| Context window | 1,048,576 tokens |
+| Max output | 131,072 tokens |
+| Input modalities | Text, image, and more — ocmini uses text only (§2.2) |
+| Reasoning effort | minimal · low · medium · high · xhigh |
 | Tool calling | Function calling, parallel calls, streamed |
 | Structured output | JSON-schema-guaranteed |
-| Prompt caching | Supported; cached input at 10% of input, cache writes at 1.25× |
-| Web search | Built-in server-side tool |
-| Pricing (≤ 272K input) | $4.00 / 1M input · $0.40 / 1M cached · $20.00 / 1M output |
-| Pricing (> 272K input) | $8.00 / 1M input · $0.80 / 1M cached · $30.00 / 1M output |
+| Prompt caching | Supported, at zero cost on this tier |
+| Web search | **Unconfirmed** — see §4.6 |
+| Pricing | Free: $0 input · $0 cached · $0 output, in exchange for training rights (§3.1) |
 
 Four consequences worth settling early, because each one is easy to get subtly wrong and
 hard to notice afterwards:
 
-- **Reasoning continuity requires the Responses endpoint.** Reasoning is not supported on
-  Chat Completions at all. On Responses, reasoning state carries across turns either by
-  `previous_response_id` or, with `store: false`, by passing back the reasoning items'
-  `encrypted_content`. OpenAI's own guidance is to return the reasoning items alongside
-  each function-call result. Get this wrong and everything still appears to work — the
-  agent just becomes measurably worse at multi-step edits. Build on `/v1/responses` and
-  prove continuity with a side-by-side comparison on a five-turn task.
-- **The long-context cliff is a real cost trap.** Crossing 272,000 input tokens reprices
-  **the entire request** at 2× input and 1.5× output — not just the excess. A single
-  verbose tool result can push a turn over the line and double the cost of everything
-  before it. This is a budget argument for §4.9's output caps and for compacting well
-  before the window is technically full (§5).
-- **Prompt caching depends on a stable prefix.** Anything volatile near the front of the
-  request (a timestamp, a changing environment block) silently forfeits the 10× discount
-  on input tokens. Assert prefix stability in tests and watch the cached-token counts.
-- **Reasoning tokens are billed as output and consume the context budget** even though
-  they are never displayed. Cost and context accounting that ignores them will understate
-  both. At `high` and above this is the dominant cost term, which makes the effort setting
-  the main lever in §9's cost-overrun mitigation.
+- **This tier is Responses-API only.** Calls to the chat-completions path are reported to
+  return HTTP 500 — a wrong-endpoint error dressed as an outage, which will cost an
+  afternoon if it is not expected. Build on `/responses` from the first spike.
+- **Reasoning continuity requires the Responses endpoint.** Reasoning state carries across
+  turns either by `previous_response_id` or, with `store: false`, by passing back the
+  reasoning items' `encrypted_content`; the guidance for OpenAI-compatible Responses
+  implementations is to return the reasoning items alongside each function-call result.
+  Get this wrong and everything still appears to work — the agent just becomes measurably
+  worse at multi-step edits. Prove continuity with a side-by-side comparison on a
+  five-turn task, and confirm during phase 1 which of the two mechanisms zen actually
+  honours, since `store` semantics on a proxied endpoint are not guaranteed to match
+  OpenAI's.
+- **Rate limits, not cost, are the binding constraint.** There is no published free quota.
+  Reports describe `FreeUsageLimitError` over HTTP 429 arriving after unpredictable
+  durations — one estimate puts the daily allowance near thirty cents of equivalent value
+  — with multi-hour retry windows rather than instant resets. This inverts the usual
+  budget argument: §4.9's output caps and §5's early compaction are still right, but they
+  are there to protect *turns and tokens against the quota*, not dollars.
+- **Reasoning tokens consume the context budget** even though they are never displayed,
+  and they count against output limits and quota. Context accounting that ignores them
+  will understate the window. Effort remains the main lever in §9's overrun mitigation —
+  now measured in quota exhaustion rather than spend.
 
-### 3.1 Pricing is dated; the wire format is not
+### 3.1 The free tier is dated; the wire format is not
 
-Two of the rows above are dated facts rather than stable ones, and both are cheap to fix
+Three of the rows above are dated facts rather than stable ones, and all are cheap to fix
 if they move.
 
-- **The $4 / $20 rate is promotional**, published as holding at least through
-  **21 November 2026**. It is already a cut from an earlier $5 / $30, which is why older
-  write-ups disagree. The §7 budgets are denominated in dollars at the current rate; if
-  the promotional pricing lapses, re-check the budgets before treating a failure against
-  them as a defect.
-- **`gpt-5.6` is an alias.** It currently routes to `gpt-5.6-sol` and will be repointed by
-  OpenAI at some future model. That is usually desirable, but it means an unannounced
-  behaviour change is possible. Pin `gpt-5.6-sol` explicitly for acceptance runs so that a
-  §7.5 regression is attributable, and record the resolved model id in the run log.
+- **Free is promotional and conditional.** The Contributor tier buys free tokens with
+  permission to use prompts and completions to train future Meta models. That is a
+  material constraint on what ocmini may be pointed at: acceptance fixtures and
+  open-source work are fine, and anything proprietary or client-owned is not. Say so in
+  the README rather than burying it here. The tier joined on 2 September 2026 with no
+  stated end date, and is reported to rotate or throttle without notice.
+- **The exact model id must be confirmed against the live API.** Sources disagree on
+  whether the version is dotted (`muse-spark-1.3-contributor-free`) or hyphenated
+  (`muse-spark-1-3-contributor-free`). Resolve this in phase 1 and record the resolved id
+  in the run log. Whichever spelling is correct, it must carry the `-contributor-free`
+  suffix: the bare `muse-spark-1.3` id is the paid listing, and silently landing on it
+  turns a free run into a billed one. Assert the configured id ends in
+  `-contributor-free` at startup, and log the resolved id on every acceptance run.
+- **The free pool can vanish.** Because the provider is one base URL, one key, and one
+  model id (below), falling back to the paid Muse Spark 1.3 listing or another zen model
+  is a configuration change, not a code change. Keep it that way.
 
 The provider is one base URL, one key, and one model id read from configuration. Nothing
-else in the agent may assume OpenAI specifically — not because a second provider is
-planned (§2.2 cuts that), but because this is what keeps a repricing or an alias move to a
-one-line change.
+else in the agent may assume opencode zen specifically — not because a second provider is
+planned (§2.2 cuts that), but because this is what keeps a tier change, an alias move, or
+a repricing to a one-line change.
 
 ---
 
@@ -160,9 +176,12 @@ prompt must say so; otherwise the model will assume `cd` sticks and quietly buil
 commands.
 
 **4.6 Network** — fetch a URL as text or markdown, with a timeout, a size cap, redirect
-limits, and refusal of private and loopback addresses. Web search is exposed as the
-model's built-in server-side tool rather than reimplemented locally, and returned
-citations survive into the rendered output.
+limits, and refusal of private and loopback addresses. Web search grounding is **not
+confirmed available** on this model and tier: no server-side search tool is documented for
+it. Establish in phase 1 whether one exists. If it does, expose it as the model's built-in
+tool rather than reimplementing it, with citations surviving into the rendered output; if
+it does not, satisfy §2.1's search requirement with a search-API-backed local tool behind
+the same §6 network permission, and record the decision here.
 
 **4.7 Task list** — the agent can record and update a checklist of pending, in-progress,
 and completed items, rendered live. Cheap to build and a large factor in whether
@@ -252,8 +271,10 @@ the model):
    `--json` emitting valid JSON with no stray output on stdout.
 4. A README exists and every command shown in it actually runs.
 5. Nothing outside the working directory was modified.
-6. Completed within **40 assistant turns** and **$4.00** of API spend, measured at the
-   §3 rates and counting reasoning tokens as the billed output they are.
+6. Completed within **40 assistant turns** and **1.5M total tokens**, counting reasoning
+   tokens as the output they are. Tokens are free on this tier (§3), so the budget is
+   denominated in tokens and turns; a 429 pause does not count against wall-clock, but a
+   run that cannot finish inside the quota is still a failure.
 7. No unhandled exception in `ocmini` itself; the run exits 0.
 
 ### 7.2 T2 — Brownfield debugging
@@ -266,7 +287,7 @@ from the wrong key. Three tests fail. Bug locations are not mentioned in the pro
 tests."*
 
 **Pass:** all tests green; test files byte-identical to the originals; the diff touches
-≤ 40 lines; ≤ 30 turns; ≤ $3.00. Search and targeted reads are used to locate the bugs
+≤ 40 lines; ≤ 30 turns; ≤ 1M total tokens. Search and targeted reads are used to locate the bugs
 rather than the whole repo being dumped into context — verifiable from the run's event log.
 
 ### 7.3 T3 — Long-horizon multi-tool task
@@ -280,7 +301,7 @@ and build the site."*
 
 **Pass:** the site builds; the index links all three posts in correct date order; tests
 pass; the run uses sub-agent delegation or the task list at least once, showing the
-long-horizon machinery is live; ≤ 60 turns; ≤ $6.00. Re-run with the compaction threshold
+long-horizon machinery is live; ≤ 60 turns; ≤ 2.5M total tokens. Re-run with the compaction threshold
 forced low — the task must still complete.
 
 ### 7.4 T4 — Feature work in an existing codebase
@@ -325,7 +346,7 @@ Confirm the starting state before grading anything:
    `TaskError`, rendering returning strings rather than printing, the new subcommand
    registered the way the others are. Graded by reading the diff.
 6. `README.md` documents the new flag and command, and every command shown in it runs.
-7. ≤ 25 turns and ≤ $3.00.
+7. ≤ 25 turns and ≤ 1M total tokens.
 
 Point 4 is the part that separates a real implementation from a plausible one, and point 2
 is the part that catches an agent taking the easy way out.
@@ -344,17 +365,17 @@ is the part that catches an agent taking the easy way out.
 
 ### 7.6 Non-interactive question policy
 
-A reasoning model will sometimes ask rather than proceed — GPT-5.6 does this on ambiguous
-prompts and before consequential actions. Define one policy and hold to it:
+A reasoning model will sometimes ask rather than proceed — Muse Spark 1.3 is expected to
+do this on ambiguous prompts and before consequential actions. Define one policy and hold to it:
 the question is surfaced, the run continues with an instruction to use best judgement, and
 a run that stalls waiting for input counts as a **failure** of whichever acceptance task it
 occurred in. An agent that hangs unattended is not finished.
 
 ### 7.7 Parity check (report, not a gate)
 
-Run T1–T3 under real opencode with `openai/gpt-5.6` — the same provider and model this
-project targets, which makes the comparison a clean test of the harness rather than of the
-model — and record turns, cost, and wall-clock time. `ocmini` is expected to be worse;
+Run T1–T3 under real opencode with `opencode/muse-spark-1.3-contributor-free` — the same
+provider and model this project targets, which makes the comparison a clean test of the harness rather than of the
+model — and record turns, tokens, and wall-clock time. `ocmini` is expected to be worse;
 document the gap with a one-line cause for each. If `ocmini` fails a task opencode
 passes, that is a defect against this spec — amend the spec, then fix the code.
 
@@ -366,11 +387,11 @@ Not binding, but each phase ends with a gate worth having.
 
 | Phase | Deliverable | Gate |
 |---|---|---|
-| 1 | API spike: one streamed call with one tool | Every row of §3 confirmed or corrected in this document; parallel tool calls observed live; 429 behaviour observed and backoff written |
-| 2 | Model calls on `/v1/responses`, streaming, in-memory conversation state | Reasoning continuity proven across a multi-turn tool conversation, with reasoning items returned alongside each tool result |
+| 1 | API spike: one streamed call with one tool | Every row of §3 confirmed or corrected in this document — model id, endpoint, reasoning-continuity mechanism, and whether web search exists; parallel tool calls observed live; 429 `FreeUsageLimitError` behaviour observed and backoff written |
+| 2 | Model calls on `/responses`, streaming, in-memory conversation state | Reasoning continuity proven across a multi-turn tool conversation, with reasoning items returned alongside each tool result |
 | 3 | Read-only tools inside a working loop | Agent can answer questions about a codebase without writing anything |
 | 4 | Write, edit, shell, permissions | **T1 passes** |
-| 5 | Interactive session, rendering, abort, cost display | A 20-minute session with no crash; abort works mid-command |
+| 5 | Interactive session, rendering, abort, token display | A 20-minute session with no crash; abort works mid-command |
 | 6 | Compaction, task list, sub-agents, project rules | **T2 passes**; forced-threshold compaction test passes |
 | 7 | Network tools, machine-readable output | **T3 passes** |
 | 8 | Hardening: error text, retries, truncation, docs | **T4 passes**; §7.5 satisfied |
@@ -385,8 +406,9 @@ Not binding, but each phase ends with a gate worth having.
 | Reasoning continuity handled wrong → quietly weaker agent | Explicit phase-2 gate comparing with and against |
 | Vague edit-failure messages → the agent flails and burns turns | Treat tool error text as a product surface; T2 detects it |
 | Acceptance tasks drift toward what the code already does | Write the verification blind, before the tools exist |
-| Promotional pricing lapses or the `gpt-5.6` alias is repointed | §3.1 pins `gpt-5.6-sol` for acceptance runs and confines the provider to a base URL, a key, and a model id |
-| A verbose turn crosses 272K input tokens and reprices the whole request | §4.9 output caps; compact well before the window fills; assert the threshold is never crossed during acceptance runs |
-| Rate limits throttle the acceptance runs | Backoff with jitter from phase 1; treat 429 as expected, and watch for it during the three consecutive T1 runs |
-| Development cost overruns | Reasoning effort is the dominant cost lever: keep routine work low, reserve high and xhigh for acceptance runs and hard debugging |
-| Prompt-cache misses from a volatile prefix | Assert prefix stability in tests; watch cached-token counts in the cost display |
+| The free tier ends, throttles, or the model id moves | §3.1 confines the provider to a base URL, a key, and a model id, so the paid Muse Spark 1.3 listing or another zen model is a config change; re-check §7 budgets if tokens stop being free |
+| **Rate limits stall the acceptance runs** — the likeliest cause of a failed run on this tier | Backoff with jitter from phase 1; treat 429 `FreeUsageLimitError` as expected rather than exceptional, with multi-hour retry windows assumed; a quota pause must not be scored as a §7.6 stall; budget the three consecutive T1 runs across days if needed |
+| Training-rights condition applied to work that cannot be shared | §3.1: fixtures and open-source only, stated in the README; proprietary work goes to a paid tier |
+| Chat-completions path returns HTTP 500 and is misread as an outage | §3: Responses-only is a known property of this tier, asserted in the phase-1 spike |
+| Web search turns out not to exist on this model | §4.6 decides between the built-in tool and a local search-API tool during phase 1, before §2.1 depends on it |
+| Context exhaustion on long runs | §4.9 output caps; compact well before the window fills; count reasoning tokens against the window |

@@ -1,0 +1,31 @@
+# ocmini — §3 fixed platform: /v1/responses, streaming, function calling, structured output
+openai>=1.99.0
+pydantic>=2.0
+
+# §4.6 network fetch: timeout, size cap, redirects (search is server-side, no package)
+httpx>=0.27
+beautifulsoup4>=4.12
+markdownify>=0.14
+
+# §2.1 interactive session, visible tool activity, cost display
+rich>=13.0
+prompt_toolkit>=3.0
+
+# §2.1 one-shot run, §7.5 --help, §6 --auto-approve flag
+click>=8.1
+
+# §3.1 config: base URL + key + model id, OPENAI_API_KEY from env
+python-dotenv>=1.0
+pyyaml>=6.0
+
+# §4.4 respect ignore rules for list/glob/search
+pathspec>=0.12
+
+# §5 compaction, §3 prefix-stable prompt cache, §9 cost accounting
+tiktoken>=0.7
+
+# §8 phase 1 / §9: 429 backoff with jitter
+tenacity>=8.0
+
+# §7 acceptance harness + unit/integration suites
+pytest>=8.0

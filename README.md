@@ -1,0 +1,2 @@
+# OCMINI
+This is my repo on building a minimal AI agent with python mimicking opencode (https://github.com/anomalyco/opencode)- the current 2nd highest starred open-source AI agent available on the internet. This is a self-given challenge where I build the agent with the help of a harness + LLM engine that is currently free (opencode + muse spark 1.3 contributor from opencode zen) to restrict myself from overly depending on AI and forcing myself to understand how AI agents truly work.
