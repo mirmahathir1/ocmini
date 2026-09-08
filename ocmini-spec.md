@@ -3,9 +3,6 @@
 A minimal Python coding agent that reproduces the working behaviour of opencode
 running on a single fixed model: **Meta Muse Spark 1.3**.
 
-Spec version 2.0 · Requirements and acceptance criteria. Design and implementation are
-left open.
-
 ---
 
 ## 1. Goal
@@ -37,14 +34,12 @@ acceptance task fail, the cut was wrong.
 | Web fetch and web search grounding | §4.6 |
 | Task list tracking | §4.7 |
 | Sub-agent delegation | §4.8 |
-| Session persistence, listing, and resume | |
+
 | Context compaction near the window limit | §5 |
 | Permission gating for writes, shell, and network | §6 |
 | Project rule loading (`AGENTS.md` or equivalent) | |
 | Slash commands, including user-defined ones | |
-| File checkpoints and revert | |
 | Token and cost accounting | |
-| Image input | Muse Spark is multimodal; screenshots and diagrams are common inputs |
 
 ### 2.2 Out of scope
 
@@ -58,6 +53,9 @@ Deliberately cut. None of these change *what* can be accomplished, only how comf
 - Plugin system and user-registered custom tools.
 - IDE extensions.
 - Orchestration beyond a single level of sub-agent delegation.
+- Session persistence, listing, and resume
+- File checkpoints and revert
+- Image input | Muse Spark is multimodal; screenshots and diagrams are common inputs
 
 ---
 
