@@ -1,4 +1,4 @@
 rm -rf ./.conda
-conda create --prefix ./.conda python=3.11 -y
-./.conda/bin/python -m pip install --upgrade pip
-./.conda/bin/python -m pip install -r requirements.txt
+conda create --prefix ./env python=3.11 -y
+./env/bin/python -m pip install --upgrade pip
+./env/bin/python -m pip install -r requirements.txt

@@ -13,8 +13,7 @@ DEFAULT_MODEL = "muse-spark-1.3-contributor-free"
 def get_api_key() -> str | None:
     here = os.path.dirname(os.path.abspath(__file__))
     load_dotenv(os.path.join(here, "..", ".env"))
-
-    value = os.environ.get("API_KEY")
+    value = os.environ["API_KEY"]
     return value.strip()
 
 def _headers(api_key: str) -> dict:
@@ -33,25 +32,6 @@ def _headers(api_key: str) -> dict:
         "x-opencode-client": "opencode",
     }
 
-def _extract_text(payload: dict) -> str:
-    """Pull assistant text out of a Responses API payload."""
-    # SDK-style convenience field, when present.
-    if isinstance(payload.get("output_text"), str) and payload["output_text"]:
-        return payload["output_text"]
-    chunks: list[str] = []
-    output = payload.get("output") or []
-    for item in output:
-        if not isinstance(item, dict):
-            continue
-        for content in item.get("content") or []:
-            if not isinstance(content, dict):
-                continue
-            if content.get("type") in ("output_text", "text"):
-                text = content.get("text")
-                if isinstance(text, str):
-                    chunks.append(text)
-    return "".join(chunks)
-
 
 def call_responses(base_url: str, api_key: str, model: str, prompt: str) -> int:
     url = base_url.rstrip("/") + "/responses"
@@ -64,29 +44,17 @@ def call_responses(base_url: str, api_key: str, model: str, prompt: str) -> int:
         payload = json.loads(resp.read().decode("utf-8", "replace"))
 
 
-    text = _extract_text(payload)
-    print(f"response id: {payload.get('id')}")
-    print(f"model: {payload.get('model', model)}")
-    usage = payload.get("usage")
-    if usage:
-        print(f"usage: {json.dumps(usage)}")
-    print("--- text ---")
-    print(text if text else "(no text in response; full payload below)")
-    if not text:
-        print(json.dumps(payload, indent=2)[:6000])
-    return 0
+    return payload
 
 def main() -> int:
-    model = DEFAULT_MODEL
-    base_url = BASE_URL
     prompt = "Say hello in one sentence."
 
     api_key = get_api_key()
-    print(f"base URL: {base_url.rstrip('/')}")
-    print(f"model: {model}")
+    print(f"base URL: {BASE_URL.rstrip('/')}")
+    print(f"model: {DEFAULT_MODEL}")
 
-    return call_responses(base_url, api_key, model, prompt)
-
+    response = call_responses(BASE_URL, api_key, DEFAULT_MODEL, prompt)
+    print(json.dumps(response, indent=2))
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    main()

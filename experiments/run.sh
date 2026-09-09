@@ -1,1 +1,1 @@
-./.conda/python.exe -m experiments.call_muse_api
+./.conda/bin/python -m experiments.call_muse_api
