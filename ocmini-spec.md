@@ -61,6 +61,8 @@ Deliberately cut.
 - File checkpoints and revert. The working tree is protected by version control, not by
   ocmini.
 - Image input. Muse Spark 1.3 accepts images, but ocmini sends text only.
+- Parallel tool calls. The model supports them; ocmini executes one tool call per
+  turn, sequentially, and a response requesting several is handled one at a time.
 
 ---
 
@@ -87,7 +89,7 @@ free tier launched on 2 September 2026 and is still moving.
 | Max output | 131,072 tokens |
 | Input modalities | Text, image, and more — ocmini uses text only (§2.2) |
 | Reasoning effort | minimal · low · medium · high · xhigh |
-| Tool calling | Function calling, parallel calls |
+| Tool calling | Function calling, parallel calls — ocmini uses one call at a time (§2.2) |
 | Structured output | JSON-schema-guaranteed |
 | Prompt caching | Supported, at zero cost on this tier |
 | Web search | **Unconfirmed** — see §4.6 |
@@ -387,7 +389,7 @@ Not binding, but each phase ends with a gate worth having.
 
 | Phase | Deliverable | Gate |
 |---|---|---|
-| 1 | API spike: one call with one tool | Every row of §3 confirmed or corrected in this document — model id, endpoint, reasoning-continuity mechanism, and whether web search exists; parallel tool calls observed live; 429 `FreeUsageLimitError` behaviour observed and backoff written |
+| 1 | API spike: one call with one tool | Every row of §3 confirmed or corrected in this document — model id, endpoint, reasoning-continuity mechanism, and whether web search exists; backoff written |
 | 2 | Model calls on `/responses`, in-memory conversation state | Reasoning continuity proven across a multi-turn tool conversation, with reasoning items returned alongside each tool result |
 | 3 | Read-only tools inside a working loop | Agent can answer questions about a codebase without writing anything |
 | 4 | Write, edit, shell, permissions | **T1 passes** |
