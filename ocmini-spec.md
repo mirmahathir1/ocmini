@@ -107,6 +107,7 @@ where it is, minus its configuration surface.
 | Permissions | `src/permission/` | Defaults hardcoded (§6) |
 | Project rules (`AGENTS.md`) | `src/session/instruction.ts` | Unchanged |
 | Token accounting | token bookkeeping in `src/session/prompt.ts` | Denominated in tokens, not dollars (§3) |
+| Asking the user | `src/tool/question.ts`, `src/question/` | Unchanged — blocking (§7.7) |
 | Interactive session | `src/cli/cmd/tui/` | Readline-grade input; see §2.2 on the TUI |
 | One-shot run | `src/cli/cmd/run.ts` | Unchanged — the acceptance harness depends on it |
 
@@ -125,7 +126,7 @@ baseline measurement.
 | Multi-provider support, model picker, catalogue | `src/provider/` minus one path | ~4.4k |
 | ACP integration | `src/acp/` | ~3.5k |
 | LSP and language diagnostics | `src/lsp/`, `src/tool/lsp.ts` | ~3.4k |
-| MCP client *(optional stretch: keeping it is allowed if it costs nothing)* | `src/mcp/`, `packages/codemode` | ~1.8k + 11k |
+| MCP client | `src/mcp/`, `packages/codemode` | ~1.8k + 11k |
 | Control plane, accounts, auth beyond one key | `src/control-plane/`, `src/account/`, `src/auth/` | ~2.2k |
 | Session persistence, listing, resume | `src/storage/`, `src/session/session.ts` state | ~1.4k |
 | Checkpoints and revert | `src/snapshot/`, `src/session/revert.ts` | ~1k |
@@ -133,22 +134,30 @@ baseline measurement.
 | Worktree and git integration beyond what shell gives | `src/worktree/`, `src/git/` | ~970 |
 | IDE integration | `src/ide/` | ~54 |
 | Image input | attachment paths in `session/` | — |
-
-Two cuts need their reasoning stated rather than assumed:
-
-- **Session persistence.** Each run starts with an empty conversation and keeps it in
-  memory only. Storage is only ~330 lines but threads through `session/`; if removing it
-  requires restructuring the session module, rule 1 applies — defer it, or keep the store
-  and simply never list or resume. A stripped project that still writes a SQLite file
-  nobody reads is a smaller failure than a rewritten session module.
-- **Parallel tool calls.** Upstream issues them and the model supports them. Cutting them
-  is *optional* here and, unlike in a from-scratch build, costs effort rather than saving
-  it — the code already works. **Default to keeping them.** Cut only if something else
-  requires it, and note the §7.5 turn-count consequence in the ledger.
+| Parallel tool calls | tool dispatch in `src/session/{prompt,tools}.ts` | — |
 
 Everything in this table is a target, not a promise. A cut that turns out to require
 rewriting gets recorded in `CUTS.md` as attempted-and-declined, with the reason. That
 record is worth as much as the successful ones.
+
+**Two exceptions to that**, and to rule 1. Session persistence and parallel tool calls are
+out of scope as decisions, not as opportunities. Neither may be quietly kept because
+deleting it turned out to be awkward, and if deletion alone will not reach them, a bounded
+refactor is authorised:
+
+- **Session persistence.** Each run starts with an empty conversation and keeps it in
+  memory only — no session store, no listing, no resume. Storage is only ~330 lines but
+  threads through `session/`, so this is the one cut likely to require touching callers
+  rather than deleting files. The refactor is authorised and bounded to `src/storage/` and
+  `src/session/`; it is phase 6's entire job, and T3 passing afterwards is the gate. A
+  build that still writes a session file nobody reads has not made this cut.
+- **Parallel tool calls.** One tool call per turn, executed sequentially; a response
+  requesting several is handled one at a time. Upstream issues them and the model supports
+  them, so unlike every other row in this table, cutting this costs effort rather than
+  saving it, and it will cost turns on search-heavy work. **That is accepted.** It is also
+  the one cut expected to move the §7 acceptance numbers on its own, which is why §7.0's
+  baseline gets re-measured immediately after it rather than treating the rise as a
+  regression.
 
 ---
 
@@ -188,7 +197,7 @@ once the provider layer starts getting cut.
 | Max output | 131,072 tokens | Same, and `ProviderTransform.maxOutputTokens` |
 | Input modalities | Text, image, and more — ocmini sends text only (§2.2) | Model metadata |
 | Reasoning effort | minimal · low · medium · high · xhigh | Captured request body |
-| Tool calling | Function calling, parallel calls | Captured request body |
+| Tool calling | Function calling, parallel calls — ocmini uses one at a time (§2.2) | Captured request body |
 | Structured output | JSON-schema-guaranteed | `src/tool/json-schema.ts` |
 | Prompt caching | Supported, at zero cost on this tier | Captured response usage block |
 | Web search | **Unconfirmed** — see §4.6 | `webSearchEnabled()` in `src/tool/registry.ts` |
@@ -305,7 +314,13 @@ than its parent is a privilege-escalation bug, not a saved file.
 much was elided and how to get the rest; every tool returns something on failure. Silent
 truncation is a bug.
 
-**Cut:** `src/tool/lsp.ts` (with §2.2's LSP cut), `src/tool/question.ts` (see §7.7),
+**4.10 Question** (`src/tool/question.ts`, `question.txt`, `src/question/`) — kept. The
+model asks the user a multiple-choice question and **the run blocks until it is answered**
+(§7.7). Upstream's option conventions are part of the tool's contract and stay as they
+are: a "Type your own answer" option is added automatically, a recommended option goes
+first and is labelled `(Recommended)`, and answers come back as arrays of labels.
+
+**Cut:** `src/tool/lsp.ts` (with §2.2's LSP cut),
 `src/tool/skill.ts`, `src/tool/plan.ts`, `src/tool/code-mode.ts`,
 `src/tool/mcp-websearch.ts`, and `src/tool/apply_patch.ts` if edit alone carries §7 — test
 that before assuming it.
@@ -397,6 +412,15 @@ baseline flakiness rate is worth knowing before it can be blamed on a cut.
 
 This is the only phase gate that costs quota and produces no code, and it is the one most
 likely to be skipped. Skipping it means every later regression is unattributable.
+
+**Re-measure once, after phase 6.** Cutting parallel tool calls (§2.2) makes the agent take
+more turns to do the same work — that is the known price of the cut, not a defect, and the
+20% bands in §7.1–§7.4 would otherwise fail on it. Re-run T1–T3, record the new numbers as
+the standing baseline, and note the delta in `CUTS.md`. This is the **only** licensed
+re-baseline; every other phase is measured against T0. If the sequential cut costs more
+than about a third of the turn budget on T2 or T3, say so here and reconsider — the cut is
+a decision, but a decision that eats the acceptance headroom is worth revisiting once,
+with numbers.
 
 ### 7.1 T1 — Greenfield build (the headline criterion)
 
@@ -547,14 +571,39 @@ after each phase:
   `src/session/llm/` cut that broke reasoning continuity — the failure §3 warns is
   otherwise invisible.
 
-### 7.7 Non-interactive question policy
+### 7.7 Question policy
 
 A reasoning model will sometimes ask rather than proceed — Muse Spark 1.3 is expected to
-do this on ambiguous prompts and before consequential actions, and upstream has a tool for
-it (`src/tool/question.ts`) which §4 cuts. Define one policy and hold to it: the question
-is surfaced, the run continues with an instruction to use best judgement, and a run that
-stalls waiting for input counts as a **failure** of whichever acceptance task it occurred
-in. An agent that hangs unattended is not finished.
+do this on ambiguous prompts and before consequential actions. **ocmini asks and waits.**
+The question is put to the user, the run blocks, and the answer comes back as the tool
+result. The agent does not pick the recommended option and carry on, and it does not
+substitute its own best guess. Upstream's `src/tool/question.ts` already does exactly
+this, so §4.10 keeps it.
+
+This is a product decision, and it costs something worth naming: it means an ocmini run
+can block indefinitely, which an agent driven by a script cannot afford. The acceptance
+harness is where that lands, and it is settled explicitly rather than by weakening the
+policy:
+
+- **Acceptance runs are attended.** §7.1's prompt already allows "answering direct
+  questions from the model", and that now applies to T1–T4 alike. An operator answers;
+  answers are brief, factual, and chosen from the options offered where options are
+  offered.
+- **Every question and answer is recorded verbatim in the run log**, and the question
+  count is reported alongside turns and tokens. It is not a pass/fail criterion — an agent
+  that asks one good question before a consequential edit is behaving correctly — but a
+  task that suddenly starts asking three questions where the baseline asked none is
+  reporting something, usually that a cut damaged the system prompt or the project-rules
+  loading.
+- **A question left unanswered for 15 minutes aborts the run**, and the abort is a
+  **failure** of that acceptance task. This bounds the blocking rather than removing it:
+  the agent is entitled to wait for a human, not to hang forever in CI.
+- **Answering does not extend the budget.** Time spent waiting does not count against
+  wall-clock, but the turns and tokens the question consumes count normally.
+
+A run that asks nothing and guesses wrong is worse than one that asks and waits. The
+failure this policy is guarding against is an agent that silently invents a requirement,
+not one that is slow.
 
 ---
 
@@ -571,7 +620,7 @@ green and `CUTS.md` updated.
 | 3 | Delete server, share, ACP, IDE, plugin system, MCP, LSP, code-mode | ~26k lines gone; tool-output regression clean; T2 passes |
 | 4 | Replace the full-screen TUI with readline-grade input; delete `packages/tui` | A 20-minute session with no crash; abort works mid-command; T1 passes |
 | 5 | Delete commands, checkpoints, worktree, accounts, control plane; hardcode permission and truncation defaults | T2 and T4 pass; permission suite still green |
-| 6 | Session persistence and storage, if it can be deleted rather than refactored (§2.2) | T3 passes; forced-threshold compaction test passes |
+| 6 | Session persistence and storage deleted, conversation held in memory only; tool dispatch made sequential (§2.2) | T3 passes; forced-threshold compaction test passes; **baseline re-measured** (§7.0) |
 | 7 | Sweep: dead flags, dead config, dead deps, dead tests, README | **§7.5 size gate met**; `--help` accurate; three consecutive T1 runs pass |
 
 Phases 1 and 3 are where most of the 780k goes, and they are almost entirely `rm -rf`
@@ -589,11 +638,14 @@ and they are where rule 1 earns its place.
 | **Cutting into the agent to hit the size number** — `edit.ts`'s matching cascade and `compaction.ts`'s tool-output erasure are the tempting targets | §4.3 and §5 put them out of bounds; §7.5 says an unreachable number gets amended, not met |
 | Over-cutting the provider to a hardcoded model id | §3.1: one base URL, one key, one model id **from config** — a tier change must stay a config change |
 | Deleting a test suite that was the only coverage of the agent loop | §7.5 names the four areas that must retain coverage |
+| **The sequential-tool-call cut inflates turn counts and masks a real regression underneath** | §7.0: re-baseline once after phase 6 and record the delta; a later rise is then attributable again |
+| Session persistence proves hard to remove and gets quietly kept | §2.2: it is a decision, not an opportunity; a build that still writes a session file has not made the cut |
 | Unattributable regression three phases after the cut that caused it | §7.0 baseline + `CUTS.md` + per-phase acceptance runs make `git revert` a diagnostic |
 | **Upstream drift** — opencode keeps moving and the fork diverges | The baseline is pinned; merging upstream is a deliberate act, not a habit. After phase 3 the fork has diverged enough that merges are unlikely to be worth it — say so in the README rather than pretending otherwise |
 | Acceptance tasks drift toward what the code already does | Write the verification blind, before cutting |
 | The free tier ends, throttles, or the model id moves | §3.1 keeps the provider a config change; re-check §7 budgets if tokens stop being free |
-| **Rate limits stall the acceptance runs** — the likeliest cause of a failed run on this tier | `src/session/retry.ts` is kept, not cut; treat 429 `FreeUsageLimitError` as expected, with multi-hour retry windows assumed; a quota pause is not a §7.7 stall; the per-phase acceptance runs multiply quota draw, so budget across days |
+| **Rate limits stall the acceptance runs** — the likeliest cause of a failed run on this tier | `src/session/retry.ts` is kept, not cut; treat 429 `FreeUsageLimitError` as expected, with multi-hour retry windows assumed; a quota pause is neither a §7.7 abort nor counted against the 15-minute answer window; the per-phase acceptance runs multiply quota draw, so budget across days |
+| An acceptance run blocks on a question nobody is watching | §7.7: runs are attended, and 15 minutes unanswered aborts as a failure rather than hanging |
 | Training-rights condition applied to work that cannot be shared | §3.1: fixtures and open-source only, stated in the README; proprietary work goes to a paid tier |
 | Chat-completions path returns HTTP 500 and is misread as an outage | §3: Responses-only is a known property of this tier, confirmed in the phase-0 capture |
 | Web search turns out not to exist on this model | §4.6 decides during phase 1, before §2.1 depends on it |
