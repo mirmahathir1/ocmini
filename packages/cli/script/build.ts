@@ -3,10 +3,12 @@
 import { $ } from "bun"
 import { rm } from "fs/promises"
 import path from "path"
-import { Script } from "@opencode-ai/script"
 import { createSolidTransformPlugin } from "@opentui/solid/bun-plugin"
 import pkg from "../package.json"
 import { modelsData } from "./generate"
+
+// ocmini is a fork that is never published; version and channel are static.
+const Script = { version: "0.0.0-ocmini", channel: "ocmini" }
 
 const dir = path.resolve(import.meta.dirname, "..")
 const binary = "lildax"

@@ -1,8 +1,10 @@
 #!/usr/bin/env bun
 
-import { Script } from "@opencode-ai/script"
 import path from "path"
 import { fileURLToPath } from "url"
+
+// ocmini is a fork that is never published; version and channel are static.
+const Script = { version: "0.0.0-ocmini", channel: "ocmini" }
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)

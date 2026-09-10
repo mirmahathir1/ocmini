@@ -13,7 +13,8 @@ process.chdir(dir)
 
 const generated = await import("./generate.ts")
 
-import { Script } from "@opencode-ai/script"
+// ocmini is a fork that is never published; version and channel are static.
+const Script = { version: "0.0.0-ocmini", channel: "ocmini" }
 import pkg from "../package.json"
 
 const singleFlag = process.argv.includes("--single")
@@ -230,17 +231,6 @@ for (const item of targets) {
     ),
   )
   binaries[name] = Script.version
-}
-
-if (Script.release) {
-  for (const key of Object.keys(binaries)) {
-    if (key.includes("linux")) {
-      await $`tar -czf ../../${key}.tar.gz *`.cwd(`dist/${key}/bin`)
-    } else {
-      await $`zip -r ../../${key}.zip *`.cwd(`dist/${key}/bin`)
-    }
-  }
-  await $`gh release upload v${Script.version} ./dist/*.zip ./dist/*.tar.gz --clobber --repo ${process.env.GH_REPO}`
 }
 
 export { binaries }
