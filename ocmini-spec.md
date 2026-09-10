@@ -59,13 +59,17 @@ The shape of the problem is visible in that table: `session/` and `tool/` — th
 itself — are about 15k lines. Everything else is surface. The project is mostly a question
 of how much surface can come off before the 15k starts breaking.
 
-### 0.2 The cut ledger
+### 0.2 The cut record
 
-Maintain `CUTS.md` at the repo root, one row per deletion: what was removed, how many
-lines, which tests were deleted with it, and one sentence on why it is safe. This is the
-project's actual output — the artefact that makes the result reviewable by someone who
-was not present for it — and it is also how a cut gets reverted cheaply when §7 turns red
-three phases later.
+There is no ledger file. Each deletion is one commit, and the commit message carries the
+record: what was removed, how many lines, which tests went with it, and one sentence on
+why it is safe. `git log` is then the project's actual output — the account that makes
+the result reviewable by someone who was not present for it — and a cut that turns §7 red
+three phases later is found by reading back through it and undone with `git revert`.
+
+One cut per commit is what makes this work. A commit that deletes three unrelated
+directories cannot be reverted for one of them, and its message cannot say why each was
+safe.
 
 ---
 
@@ -80,7 +84,7 @@ with `ocmini`.
 "Minimal" here means **narrow, not weak**. The project earns its simplicity by deleting
 configurability — one provider, one model, one wire format, one prompt, one client — not
 by deleting capability. The test of whether a cut was correct is §7: if removing something
-makes an acceptance task fail, the cut was wrong and the ledger row gets reverted.
+makes an acceptance task fail, the cut was wrong and gets reverted.
 
 ---
 
@@ -137,8 +141,9 @@ baseline measurement.
 | Parallel tool calls | tool dispatch in `src/session/{prompt,tools}.ts` | — |
 
 Everything in this table is a target, not a promise. A cut that turns out to require
-rewriting gets recorded in `CUTS.md` as attempted-and-declined, with the reason. That
-record is worth as much as the successful ones.
+rewriting is abandoned and recorded as attempted-and-declined, with the reason, in the
+message of the next commit that lands — or in a `git commit --allow-empty` of its own if
+nothing else ships. That record is worth as much as the successful ones.
 
 **Two exceptions to that**, and to rule 1. Session persistence and parallel tool calls are
 out of scope as decisions, not as opportunities. Neither may be quietly kept because
@@ -416,11 +421,11 @@ likely to be skipped. Skipping it means every later regression is unattributable
 **Re-measure once, after phase 6.** Cutting parallel tool calls (§2.2) makes the agent take
 more turns to do the same work — that is the known price of the cut, not a defect, and the
 20% bands in §7.1–§7.4 would otherwise fail on it. Re-run T1–T3, record the new numbers as
-the standing baseline, and note the delta in `CUTS.md`. This is the **only** licensed
-re-baseline; every other phase is measured against T0. If the sequential cut costs more
-than about a third of the turn budget on T2 or T3, say so here and reconsider — the cut is
-a decision, but a decision that eats the acceptance headroom is worth revisiting once,
-with numbers.
+the standing baseline, and note the delta in the commit that closes phase 6. This is the
+**only** licensed re-baseline; every other phase is measured against T0. If the sequential
+cut costs more than about a third of the turn budget on T2 or T3, say so here and
+reconsider — the cut is a decision, but a decision that eats the acceptance headroom is
+worth revisiting once, with numbers.
 
 ### 7.1 T1 — Greenfield build (the headline criterion)
 
@@ -537,8 +542,8 @@ is the part that catches an agent taking the easy way out.
   by cutting into `src/tool/edit.ts` or `src/session/compaction.ts`. If the true floor is
   higher, amend this line and say what the floor is made of. If a cut would meet the
   number by removing something §7's tasks need, the number was wrong, not the code.
-- **`CUTS.md` accounts for the difference.** Every deleted directory has a row, including
-  the ones attempted and reverted.
+- **The commit history accounts for the difference.** Every deleted directory has a
+  commit of its own (§0.2), including the ones attempted and reverted.
 - **The surviving upstream tests pass.** `bun test` green, with the deleted suites removed
   rather than skipped. Meaningful coverage remains over the agent loop, tool execution,
   permission decisions, and compaction — if a cut removed the last test covering one of
@@ -546,8 +551,8 @@ is the part that catches an agent taking the easy way out.
 - `--help` and the README describe every flag that exists, and nothing that does not.
   Post-strip this is a real risk: flags outlive the features they configured.
 - **Three consecutive T1 runs pass.** A one-in-three success rate is not a passing agent,
-  it is a lucky one. When T1 goes flaky after a cut, `CUTS.md` is the list of suspects and
-  `git revert` is the diagnostic.
+  it is a lucky one. When T1 goes flaky after a cut, `git log` since the last green run is
+  the list of suspects and `git revert` is the diagnostic.
 - Killing the process mid-turn leaves the working tree in a state version control can
   explain: no half-written files, no orphaned temporary artefacts. The conversation is
   lost by design, and that is acceptable.
@@ -566,7 +571,8 @@ after each phase:
   quietly changed a code path rather than removing one.
 - **Wire shape.** The request ocmini sends for a fixed conversation matches the baseline
   capture from §3: same endpoint, same reasoning-item handling, same tool-schema encoding.
-  Deliberate differences (a cut tool no longer in the schema) are listed in `CUTS.md`;
+  Deliberate differences (a cut tool no longer in the schema) are named in the commit that
+  caused them;
   everything else is a bug. This is the check that catches a `src/provider/` or
   `src/session/llm/` cut that broke reasoning continuity — the failure §3 warns is
   otherwise invisible.
@@ -610,7 +616,7 @@ not one that is slow.
 ## 8. Suggested phasing
 
 Not binding, but each phase ends with a gate worth having. Every phase ends with `bun test`
-green and `CUTS.md` updated.
+green and every cut in it committed separately (§0.2).
 
 | Phase | Deliverable | Gate |
 |---|---|---|
@@ -640,7 +646,7 @@ and they are where rule 1 earns its place.
 | Deleting a test suite that was the only coverage of the agent loop | §7.5 names the four areas that must retain coverage |
 | **The sequential-tool-call cut inflates turn counts and masks a real regression underneath** | §7.0: re-baseline once after phase 6 and record the delta; a later rise is then attributable again |
 | Session persistence proves hard to remove and gets quietly kept | §2.2: it is a decision, not an opportunity; a build that still writes a session file has not made the cut |
-| Unattributable regression three phases after the cut that caused it | §7.0 baseline + `CUTS.md` + per-phase acceptance runs make `git revert` a diagnostic |
+| Unattributable regression three phases after the cut that caused it | §7.0 baseline + one cut per commit (§0.2) + per-phase acceptance runs make `git revert` a diagnostic |
 | **Upstream drift** — opencode keeps moving and the fork diverges | The baseline is pinned; merging upstream is a deliberate act, not a habit. After phase 3 the fork has diverged enough that merges are unlikely to be worth it — say so in the README rather than pretending otherwise |
 | Acceptance tasks drift toward what the code already does | Write the verification blind, before cutting |
 | The free tier ends, throttles, or the model id moves | §3.1 keeps the provider a config change; re-check §7 budgets if tokens stop being free |
