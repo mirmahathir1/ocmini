@@ -1,6 +1,6 @@
 export * as PluginPromise from "./promise"
 
-import { define } from "@opencode-ai/plugin/v2/effect"
+import { define } from "./define"
 import type { Plugin, PluginContext, Registration } from "@opencode-ai/plugin/v2/promise"
 import { Effect, Scope } from "effect"
 

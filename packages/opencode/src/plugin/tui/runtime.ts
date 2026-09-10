@@ -15,8 +15,8 @@ import path from "path"
 import { fileURLToPath } from "url"
 import { TuiConfig } from "@/config/tui"
 import { AppNodeBuilder } from "@opencode-ai/core/effect/app-node-builder"
-import { errorData, errorMessage } from "@opencode-ai/tui/util/error"
-import { isRecord } from "@opencode-ai/tui/util/record"
+import { errorData, errorMessage } from "../../util/error"
+import { isRecord } from "../../util/record"
 import { resolveHostAttentionSoundPaths } from "@/config/tui-host-attention"
 import {
   readPackageThemes,
