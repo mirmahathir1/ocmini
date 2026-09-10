@@ -8,15 +8,6 @@ import { AmazonBedrock } from "../../src/providers"
 import * as BedrockConverse from "../../src/protocols/bedrock-converse"
 import { it } from "../lib/effect"
 import { fixedResponse } from "../lib/http"
-import {
-  eventSummary,
-  expectWeatherToolLoop,
-  runWeatherToolLoop,
-  weatherTool,
-  weatherToolLoopRequest,
-  weatherToolName,
-} from "../recorded-scenarios"
-import { recordedTests } from "../recorded-test"
 
 const codec = new EventStreamCodec(toUtf8, fromUtf8)
 const utf8Encoder = new TextEncoder()
@@ -649,96 +640,6 @@ describe("Bedrock Converse route", () => {
 
       const system = (prepared.body as { system: Array<{ cachePoint?: unknown }> }).system
       expect(system.filter((part) => "cachePoint" in part)).toHaveLength(4)
-    }),
-  )
-})
-
-// Live recorded integration tests. Run with `RECORD=true AWS_ACCESS_KEY_ID=...
-// AWS_SECRET_ACCESS_KEY=... [AWS_SESSION_TOKEN=...] bun run test ...` to refresh
-// cassettes; replay is the default and works without credentials.
-//
-// Region is pinned to us-east-1 in tests so the request URL is stable across
-// machines on replay. If you need to record from a different region (e.g. your
-// account has access elsewhere), pass `BEDROCK_RECORDING_REGION=eu-west-1` —
-// but then commit the resulting cassette and others should record from the
-// same region too.
-const RECORDING_REGION = process.env.BEDROCK_RECORDING_REGION ?? "us-east-1"
-
-const recordedModel = () =>
-  AmazonBedrock.configure({
-    // Most newer Anthropic models on Bedrock require a cross-region inference
-    // profile (`us.` prefix). Nova does not require an Anthropic use-case form
-    // and is on-demand-throughput accessible by default for most accounts.
-    credentials: {
-      region: RECORDING_REGION,
-      accessKeyId: process.env.AWS_ACCESS_KEY_ID ?? "fixture",
-      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY ?? "fixture",
-      sessionToken: process.env.AWS_SESSION_TOKEN,
-    },
-  }).model(process.env.BEDROCK_MODEL_ID ?? "us.amazon.nova-micro-v1:0")
-
-const recorded = recordedTests({
-  prefix: "bedrock-converse",
-  provider: "amazon-bedrock",
-  protocol: "bedrock-converse",
-  requires: ["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"],
-})
-
-describe("Bedrock Converse recorded", () => {
-  recorded.effect("streams text", () =>
-    Effect.gen(function* () {
-      const llm = yield* LLMClient.Service
-      const response = yield* llm.generate(
-        LLM.request({
-          id: "recorded_bedrock_text",
-          model: recordedModel(),
-          system: "Reply with the single word 'Hello'.",
-          prompt: "Say hello.",
-          cache: "none",
-          generation: { maxTokens: 16, temperature: 0 },
-        }),
-      )
-
-      expect(eventSummary(response.events)).toEqual([
-        { type: "text", value: "Hello" },
-        { type: "finish", reason: "stop", usage: { inputTokens: 12, outputTokens: 2, totalTokens: 14 } },
-      ])
-    }),
-  )
-
-  recorded.effect.with("streams a tool call", { tags: ["tool"] }, () =>
-    Effect.gen(function* () {
-      const llm = yield* LLMClient.Service
-      const response = yield* llm.generate(
-        LLM.request({
-          id: "recorded_bedrock_tool_call",
-          model: recordedModel(),
-          system: "Call tools exactly as requested.",
-          prompt: "Call get_weather with city exactly Paris.",
-          tools: [weatherTool],
-          toolChoice: ToolChoice.make(weatherTool),
-          cache: "none",
-          generation: { maxTokens: 80, temperature: 0 },
-        }),
-      )
-
-      expect(eventSummary(response.events)).toEqual([
-        { type: "tool-call", name: weatherToolName, input: { city: "Paris" } },
-        { type: "finish", reason: "tool-calls", usage: { inputTokens: 419, outputTokens: 16, totalTokens: 435 } },
-      ])
-    }),
-  )
-
-  recorded.effect.with("drives a tool loop", { tags: ["tool", "tool-loop", "golden"] }, () =>
-    Effect.gen(function* () {
-      expectWeatherToolLoop(
-        yield* runWeatherToolLoop(
-          weatherToolLoopRequest({
-            id: "recorded_bedrock_tool_loop",
-            model: recordedModel(),
-          }),
-        ),
-      )
     }),
   )
 })
