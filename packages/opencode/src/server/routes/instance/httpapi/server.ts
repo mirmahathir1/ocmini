@@ -53,6 +53,7 @@ import { MoveSession } from "@opencode-ai/core/control-plane/move-session"
 import { Database } from "@opencode-ai/core/database/database"
 import { AppNodeBuilderV1 } from "@/effect/app-node-builder-v1"
 import { LayerNode } from "@opencode-ai/core/effect/layer-node"
+import { app } from "@/runtime/graph"
 import { httpClient } from "@opencode-ai/core/effect/app-node-platform"
 import { EventV2 } from "@opencode-ai/core/event"
 import { ModelsDev } from "@opencode-ai/core/models-dev"
@@ -209,64 +210,6 @@ type RouteRequirements =
   | HttpRouter.Request<"Requires", unknown>
   | HttpRouter.Request<"GlobalRequires", never>
 
-const app = LayerNode.group([
-  Npm.node,
-  FSUtil.node,
-  Database.node,
-  Auth.node,
-  Account.node,
-  Config.node,
-  Env.node,
-  Git.node,
-  Ripgrep.node,
-  Storage.node,
-  Snapshot.node,
-  Plugin.node,
-  ModelsDev.node,
-  Provider.node,
-  ProviderAuth.node,
-  Agent.node,
-  Skill.node,
-  Discovery.node,
-  Question.node,
-  Permission.node,
-  PermissionSaved.node,
-  Todo.node,
-  Session.node,
-  SessionProjector.node,
-  SessionStatus.node,
-  BackgroundJob.node,
-  RuntimeFlags.node,
-  EventV2Bridge.node,
-  SessionRunState.node,
-  SessionProcessor.node,
-  SessionCompaction.node,
-  SessionRevert.node,
-  SessionSummary.node,
-  SessionPrompt.node,
-  Instruction.node,
-  LLM.node,
-  LSP.node,
-  MCP.node,
-  McpAuth.node,
-  Command.node,
-  Truncate.node,
-  ToolRegistry.node,
-  Format.node,
-  Project.node,
-  Vcs.node,
-  Workspace.node,
-  Worktree.node,
-  Installation.node,
-  ShareNext.node,
-  SessionShare.node,
-  InstanceStore.node,
-  httpClient,
-  EventV2.node,
-  ProjectV2.node,
-  ProjectCopy.node,
-  PtyTicket.node,
-])
 
 export function createRoutes(
   corsOptions?: CorsOptions,

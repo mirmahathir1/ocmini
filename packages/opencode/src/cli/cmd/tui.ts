@@ -13,7 +13,7 @@ import type { EventSource } from "@opencode-ai/tui/context/sdk"
 import { writeHeapSnapshot } from "v8"
 import { ServerAuth } from "@/server/auth"
 import { validateSession } from "../tui/validate-session"
-import { win32InstallCtrlCGuard } from "@opencode-ai/tui/terminal-win32"
+import { win32InstallCtrlCGuard } from "../terminal-win32"
 
 declare global {
   const OPENCODE_WORKER_PATH: string
