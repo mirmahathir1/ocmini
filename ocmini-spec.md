@@ -107,6 +107,7 @@ where it is, minus its configuration surface.
 | Web fetch, web search | `src/tool/{webfetch,websearch}.ts` | Unchanged, subject to §4.6 |
 | Task list | `src/tool/todo.ts`, `src/session/{todo,reminders}.ts` | Unchanged |
 | Sub-agent | `src/tool/task.ts`, `src/agent/` | One level of delegation |
+| Skills | `src/tool/skill.ts`, `src/skill/`, listing in `src/session/system.ts` | Unchanged — see §4.11 |
 | Truncation discipline | `src/tool/truncate.ts` | Constants fixed, config removed |
 | Compaction | `src/session/{overflow,compaction}.ts` | Unchanged |
 | Permissions | `src/permission/` | Defaults hardcoded (§6) |
@@ -148,7 +149,7 @@ baseline measurement.
 | Control plane, accounts, auth beyond one key | `src/control-plane/`, `src/account/`, `src/auth/` | ~2.2k |
 | Session persistence, listing, resume | `src/storage/`, `src/session/session.ts` state | ~1.4k |
 | Checkpoints and revert | `src/snapshot/`, `src/session/revert.ts` | ~1k |
-| Slash commands | `src/command/` | ~344 |
+| Slash commands | `src/command/` | ~344 — also feeds the skill picker; see §4.11 |
 | Worktree and git integration beyond what shell gives | `src/worktree/`, `src/git/` | ~970 |
 | IDE integration | `src/ide/` | ~54 |
 | Image input | attachment paths in `session/` | — |
@@ -339,8 +340,23 @@ model asks the user a multiple-choice question and **the run blocks until it is 
 are: a "Type your own answer" option is added automatically, a recommended option goes
 first and is labelled `(Recommended)`, and answers come back as arrays of labels.
 
+**4.11 Skills** (`src/tool/skill.ts`, `src/skill/`) — kept. Skills are how a repository
+teaches the agent a procedure it would otherwise have to be re-told every session. The
+capability is three things and nothing else: `src/skill/` discovers them,
+`src/session/system.ts` lists them in the system prompt, and `src/tool/skill.ts` loads one
+when the model asks. That loop is self-contained — none of the three imports
+`src/command/` — so **no cut may remove skill discovery, the skill tool, or the
+system-prompt listing**, and none of them is endangered by a cut elsewhere.
+
+What *is* endangered is the picker. Upstream let `Command.list()` fold skills into its
+catalog so the run CLI's `/` menu could list them, which means cutting slash commands
+(§2.2) takes the menu's data source with it while leaving skills themselves untouched.
+Repoint the picker at `/skill` rather than treating the menu going dark as evidence the
+capability broke. A skill chosen there inserts `/<name> ` as ordinary prompt text and the
+model reaches for the skill tool; the server-side expansion is gone and nothing needs it.
+
 **Cut:** `src/tool/lsp.ts` (with §2.2's LSP cut),
-`src/tool/skill.ts`, `src/tool/plan.ts`, `src/tool/code-mode.ts`,
+`src/tool/plan.ts`, `src/tool/code-mode.ts`,
 `src/tool/mcp-websearch.ts`, and `src/tool/apply_patch.ts` if edit alone carries §7 — test
 that before assuming it.
 
