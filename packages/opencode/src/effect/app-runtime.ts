@@ -42,7 +42,6 @@ import { InstanceStore } from "@/project/instance-store"
 import { Project } from "@/project/project"
 import { Vcs } from "@/project/vcs"
 import { Workspace } from "@/control-plane/workspace"
-import { Installation } from "@/installation"
 import { ShareNext } from "@/share/share-next"
 import { SessionShare } from "@/share/session"
 import { Npm } from "@opencode-ai/core/npm"
@@ -100,7 +99,6 @@ export const AppLayer = AppNodeBuilderV1.build(
     Project.node,
     Vcs.node,
     Workspace.node,
-    Installation.node,
     ShareNext.node,
     SessionShare.node,
   ]),

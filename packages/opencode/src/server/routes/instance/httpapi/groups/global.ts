@@ -6,7 +6,6 @@ import "@opencode-ai/core/account"
 import "@/server/event"
 import { Schema } from "effect"
 import { HttpApi, HttpApiEndpoint, HttpApiError, HttpApiGroup, OpenApi } from "effect/unstable/httpapi"
-import semver from "semver"
 import { described } from "./metadata"
 
 const GlobalHealth = Schema.Struct({
@@ -48,29 +47,11 @@ const GlobalEventSchema = Schema.Struct({
   ]),
 }).annotate({ identifier: "GlobalEvent" })
 
-export const GlobalUpgradeInput = Schema.Struct({
-  target: Schema.String.check(
-    Schema.makeFilter((value) => (semver.valid(value) === null ? "Expected a semantic version" : undefined)),
-  ),
-})
-
-const GlobalUpgradeResult = Schema.Union([
-  Schema.Struct({
-    success: Schema.Literal(true),
-    version: Schema.String,
-  }),
-  Schema.Struct({
-    success: Schema.Literal(false),
-    error: Schema.String,
-  }),
-])
-
 export const GlobalPaths = {
   health: "/global/health",
   event: "/global/event",
   config: "/global/config",
   dispose: "/global/dispose",
-  upgrade: "/global/upgrade",
 } as const
 
 export const GlobalApi = HttpApi.make("global").add(
@@ -121,17 +102,6 @@ export const GlobalApi = HttpApi.make("global").add(
           identifier: "global.dispose",
           summary: "Dispose instance",
           description: "Clean up and dispose all OpenCode instances, releasing all resources.",
-        }),
-      ),
-      HttpApiEndpoint.post("upgrade", GlobalPaths.upgrade, {
-        payload: GlobalUpgradeInput,
-        success: described(GlobalUpgradeResult, "Upgrade result"),
-        error: HttpApiError.BadRequest,
-      }).annotateMerge(
-        OpenApi.annotations({
-          identifier: "global.upgrade",
-          summary: "Upgrade opencode",
-          description: "Upgrade opencode to the specified version.",
         }),
       ),
     )

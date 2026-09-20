@@ -16,7 +16,6 @@ import { Env } from "@/env"
 import { EventV2Bridge } from "@/event-v2-bridge"
 import { Format } from "@/format"
 import { Git } from "@/git"
-import { Installation } from "@/installation"
 import { LSP } from "@/lsp/lsp"
 import { MCP } from "@/mcp"
 import { McpAuth } from "@/mcp/auth"
@@ -107,7 +106,6 @@ export const app = LayerNode.group([
   Project.node,
   Vcs.node,
   Workspace.node,
-  Installation.node,
   ShareNext.node,
   SessionShare.node,
   InstanceStore.node,
