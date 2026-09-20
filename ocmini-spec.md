@@ -101,6 +101,7 @@ where it is, minus its configuration surface.
 | Model calls | `src/session/llm/` | The Responses path only (§3) |
 | System prompt | `src/session/system.ts`, `src/session/prompt/*.txt` | One prompt file; delete the other thirteen |
 | Read, write, edit | `src/tool/{read,write,edit}.ts` | Unchanged |
+| Formatting after edit | `src/format/`, call sites in `src/tool/{write,edit,apply_patch}.ts` | Built-in formatter table fixed; per-formatter config removed |
 | Glob, grep | `src/tool/{glob,grep}.ts` | Unchanged |
 | Shell | `src/tool/shell.ts` | Unchanged |
 | Web fetch, web search | `src/tool/{webfetch,websearch}.ts` | Unchanged, subject to §4.6 |
@@ -114,6 +115,19 @@ where it is, minus its configuration surface.
 | Asking the user | `src/tool/question.ts`, `src/question/` | Unchanged — blocking (§7.7) |
 | Interactive session | `src/cli/cmd/tui/` | Readline-grade input; see §2.2 on the TUI |
 | One-shot run | `src/cli/cmd/run.ts` | Unchanged — the acceptance harness depends on it |
+
+**On formatting.** It is the one row here that looks like a cut and is not. `src/format/`
+is 607 lines of integration with 26 external formatters, it appears nowhere in §2.2, and
+its four call sites are three-line blocks that would delete cleanly — every mechanical
+signal says take it. Take it anyway and the agent writes unformatted code into a
+formatted repository, and every task in §7 that edits an existing file now produces a diff
+carrying whitespace noise the task never asked for. That cost lands on the acceptance
+numbers and on anyone reading the output, and it is not recoverable by a later
+`bun run format` because the damage is already in the turn the model has to reason about
+next. Kept deliberately, and a future cut that proposes it is declined by this paragraph
+rather than re-argued. What does come out is its configuration surface: the built-in
+formatter table is fixed and the per-formatter enable/disable config in `opencode.json`
+goes, in line with §6.
 
 ### 2.2 Cut
 
