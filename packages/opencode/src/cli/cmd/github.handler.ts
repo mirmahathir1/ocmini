@@ -19,7 +19,6 @@ import type {
 import { UI } from "../ui"
 import { ModelsDev } from "@opencode-ai/core/models-dev"
 import { InstanceRef } from "@/effect/instance-ref"
-import { SessionShare } from "@/share/session"
 import { Session } from "@/session/session"
 import type { SessionID } from "../../session/schema"
 import { MessageID, PartID } from "../../session/schema"
@@ -380,7 +379,6 @@ export const githubRun = Effect.fn("Cli.github.run")(function* (args: { event?: 
   if (!ctx) return yield* Effect.die("InstanceRef not provided")
   const gitSvc = yield* Git.Service
   const sessionSvc = yield* Session.Service
-  const sessionShare = yield* SessionShare.Service
   const sessionPrompt = yield* SessionPrompt.Service
   const events = yield* EventV2Bridge.Service
   const runLocalEffect = <A, E>(effect: Effect.Effect<A, E>) =>
@@ -407,7 +405,6 @@ export const githubRun = Effect.fn("Cli.github.run")(function* (args: { event?: 
     const { providerID, modelID } = normalizeModel()
     const variant = process.env["VARIANT"] || undefined
     const runId = normalizeRunId()
-    const share = normalizeShare()
     const oidcBaseUrl = normalizeOidcBaseUrl()
     const { owner, repo } = context.repo
     // For repo events (schedule, workflow_dispatch), payload has no issue/comment data
@@ -512,12 +509,6 @@ export const githubRun = Effect.fn("Cli.github.run")(function* (args: { event?: 
         }),
       )
       await subscribeSessionEvents()
-      shareId = await (async () => {
-        if (share === false) return
-        if (!share && repoData.data.private) return
-        await runLocalEffect(sessionShare.share(session.id))
-        return session.id.slice(-8)
-      })()
       console.log("opencode session", session.id)
 
       // Handle event types:
@@ -675,14 +666,6 @@ export const githubRun = Effect.fn("Cli.github.run")(function* (args: { event?: 
       const value = process.env["GITHUB_RUN_ID"]
       if (!value) throw new Error(`Environment variable "GITHUB_RUN_ID" is not set`)
       return value
-    }
-
-    function normalizeShare() {
-      const value = process.env["SHARE"]
-      if (!value) return undefined
-      if (value === "true") return true
-      if (value === "false") return false
-      throw new Error(`Invalid share value: ${value}. Share must be a boolean.`)
     }
 
     function normalizeUseGithubToken() {

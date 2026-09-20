@@ -54,7 +54,6 @@ const TOP_LEVEL = [
   "models",
   "stats",
   "export",
-  "import",
   "github",
   "pr",
   "session",
