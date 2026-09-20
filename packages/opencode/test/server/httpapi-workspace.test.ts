@@ -186,11 +186,7 @@ describe("workspace HttpApi", () => {
       ])
 
       expect(adapters.status).toBe(200)
-      expect(yield* adapters.json).toContainEqual({
-        type: "worktree",
-        name: "Worktree",
-        description: "Create a git worktree",
-      })
+      expect(yield* adapters.json).toEqual([])
 
       expect(workspaces.status).toBe(200)
       expect(yield* workspaces.json).toEqual([])
@@ -296,24 +292,6 @@ describe("workspace HttpApi", () => {
         type: "local-test",
         name: "local-test",
       })
-    }),
-  )
-
-  it.live("creates a real git worktree workspace via the builtin adapter", () =>
-    Effect.gen(function* () {
-      Flag.OPENCODE_EXPERIMENTAL_WORKSPACES = true
-      const dir = yield* tmpdirScoped({ git: true })
-
-      const created = yield* requestServer(WorkspacePaths.list, dir, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ type: "worktree", branch: null }),
-      })
-
-      const body = yield* Effect.promise(() => created.text())
-      expect({ status: created.status, body }).toMatchObject({ status: 200 })
-      const workspace = JSON.parse(body) as Workspace.Info
-      expect(workspace).toMatchObject({ type: "worktree" })
     }),
   )
 

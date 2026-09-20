@@ -47,7 +47,6 @@ import { Snapshot } from "@/snapshot"
 import { Storage } from "@/storage/storage"
 import { ToolRegistry } from "@/tool/registry"
 import { Truncate } from "@/tool/truncate"
-import { Worktree } from "@/worktree"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { Database } from "@opencode-ai/core/database/database"
 import { httpClient } from "@opencode-ai/core/effect/app-node-platform"
@@ -108,7 +107,6 @@ export const app = LayerNode.group([
   Project.node,
   Vcs.node,
   Workspace.node,
-  Worktree.node,
   Installation.node,
   ShareNext.node,
   SessionShare.node,
