@@ -2,7 +2,6 @@ import { PermissionV1 } from "@opencode-ai/core/v1/permission"
 import { Agent } from "@/agent/agent"
 import { SessionV1 } from "@opencode-ai/core/v1/session"
 import { EventV2Bridge } from "@/event-v2-bridge"
-import { Command } from "@/command"
 import { Permission } from "@/permission"
 import { Session } from "@/session/session"
 import { SessionCompaction } from "@/session/compaction"
@@ -22,10 +21,8 @@ import { HttpServerRequest, HttpServerResponse } from "effect/unstable/http"
 import { HttpApiBuilder, HttpApiError, HttpApiSchema } from "effect/unstable/httpapi"
 import { InstanceHttpApi } from "../api"
 import {
-  CommandPayload,
   DiffQuery,
   ForkPayload,
-  InitPayload,
   ListQuery,
   MessagesQuery,
   PermissionResponsePayload,
@@ -232,23 +229,6 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       return true
     })
 
-    const init = Effect.fn("SessionHttpApi.init")(function* (ctx: {
-      params: { sessionID: SessionID }
-      payload: typeof InitPayload.Type
-    }) {
-      yield* requireSession(ctx.params.sessionID)
-      yield* promptSvc
-        .command({
-          sessionID: ctx.params.sessionID,
-          messageID: ctx.payload.messageID,
-          model: `${ctx.payload.providerID}/${ctx.payload.modelID}`,
-          command: Command.Default.INIT,
-          arguments: "",
-        })
-        .pipe(Effect.mapError(() => new HttpApiError.BadRequest({})))
-      return true
-    })
-
     const summarize = Effect.fn("SessionHttpApi.summarize")(function* (ctx: {
       params: { sessionID: SessionID }
       payload: typeof SummarizePayload.Type
@@ -305,16 +285,6 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
         Effect.forkIn(scope, { startImmediately: true }),
       )
       return HttpApiSchema.NoContent.make()
-    })
-
-    const command = Effect.fn("SessionHttpApi.command")(function* (ctx: {
-      params: { sessionID: SessionID }
-      payload: typeof CommandPayload.Type
-    }) {
-      yield* requireSession(ctx.params.sessionID)
-      return yield* promptSvc
-        .command({ ...ctx.payload, sessionID: ctx.params.sessionID })
-        .pipe(Effect.mapError(() => new HttpApiError.BadRequest({})))
     })
 
     const shell = Effect.fn("SessionHttpApi.shell")(function* (ctx: {
@@ -403,11 +373,9 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       .handle("update", update)
       .handleRaw("fork", forkRaw)
       .handle("abort", abort)
-      .handle("init", init)
       .handle("summarize", summarize)
       .handle("prompt", prompt)
       .handle("promptAsync", promptAsync)
-      .handle("command", command)
       .handle("shell", shell)
       .handle("revert", revert)
       .handle("unrevert", unrevert)

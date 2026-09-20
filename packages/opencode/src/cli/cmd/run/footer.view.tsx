@@ -741,13 +741,12 @@ export function RunFooterView(props: RunFooterViewProps) {
                             commands={props.commands}
                             onClose={closePanel}
                             onSelect={(name) => {
+                              // Skills are kept (spec §2.1) but src/command is cut, so
+                              // there is no server-side expansion to route to. Insert the
+                              // text and let the model reach for the skill tool.
                               composer.replacePrompt({
                                 text: `/${name} `,
                                 parts: [],
-                                command: {
-                                  name,
-                                  arguments: "",
-                                },
                               })
                               closePanel()
                             }}

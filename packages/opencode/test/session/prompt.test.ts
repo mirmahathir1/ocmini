@@ -12,7 +12,6 @@ import { fileURLToPath } from "url"
 import { NamedError } from "@opencode-ai/core/util/error"
 import { Agent as AgentSvc } from "../../src/agent/agent"
 import { BackgroundJob } from "@/background/job"
-import { Command } from "../../src/command"
 import { Config } from "@/config/config"
 import { LSP } from "@/lsp/lsp"
 import { MCP } from "../../src/mcp"
@@ -176,7 +175,6 @@ const promptRoot = LayerNode.group([
   LLM.node,
   Env.node,
   AgentSvc.node,
-  Command.node,
   Permission.node,
   Plugin.node,
   Config.node,
@@ -1809,39 +1807,6 @@ it.instance(
   10_000,
 )
 
-unix(
-  "command ! expansion uses configured shell over env shell",
-  () =>
-    withSh(() =>
-      Effect.gen(function* () {
-        if (!(yield* hasBash)) return
-        const { llm } = yield* useServerConfig((url) => ({
-          ...providerCfg(url),
-          shell: "bash",
-          command: {
-            probe: {
-              template: "Probe: !`[[ 1 -eq 1 ]] && printf configured`",
-            },
-          },
-        }))
-
-        const { prompt, chat } = yield* boot()
-        yield* llm.text("done")
-
-        const result = yield* prompt.command({
-          sessionID: chat.id,
-          command: "probe",
-          arguments: "",
-        })
-
-        expect(result.info.role).toBe("assistant")
-        const inputs = yield* llm.inputs
-        expect(JSON.stringify(inputs.at(-1)?.messages)).toContain("configured")
-      }),
-    ),
-  30_000,
-)
-
 unixNoLLMServer(
   "cancel interrupts shell and resolves cleanly",
   () =>
@@ -2438,31 +2403,3 @@ noLLMServer.instance(
   30_000,
 )
 
-noLLMServer.instance(
-  "unknown command throws typed error with available names",
-  () =>
-    Effect.gen(function* () {
-      const prompt = yield* SessionPrompt.Service
-      const sessions = yield* Session.Service
-      const session = yield* sessions.create({})
-      const exit = yield* prompt
-        .command({
-          sessionID: session.id,
-          command: "nonexistent-command-xyz",
-          arguments: "",
-        })
-        .pipe(Effect.exit)
-
-      expect(Exit.isFailure(exit)).toBe(true)
-      if (Exit.isFailure(exit)) {
-        const err = Cause.squash(exit.cause)
-        expect(err).not.toBeInstanceOf(TypeError)
-        expect(NamedError.Unknown.isInstance(err)).toBe(true)
-        if (NamedError.Unknown.isInstance(err)) {
-          expect(err.data.message).toContain('Command not found: "nonexistent-command-xyz"')
-          expect(err.data.message).toContain("init")
-        }
-      }
-    }),
-  30_000,
-)

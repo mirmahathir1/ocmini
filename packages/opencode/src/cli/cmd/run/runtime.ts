@@ -20,7 +20,15 @@ import { resolveModelInfo, resolveRunTuiConfig, resolveSessionInfo } from "./run
 import { createRuntimeLifecycle } from "./runtime.lifecycle"
 import { trace } from "./trace"
 import { cycleVariant, formatModelLabel, resolveSavedVariant, resolveVariant, saveVariant } from "./variant.shared"
-import type { LocalReplayAnchor, LocalReplayRow, RunInput, RunPrompt, RunProvider, StreamCommit } from "./types"
+import type {
+  LocalReplayAnchor,
+  LocalReplayRow,
+  RunCommand,
+  RunInput,
+  RunPrompt,
+  RunProvider,
+  StreamCommit,
+} from "./types"
 
 /** @internal Exported for testing */
 export { pickVariant, resolveVariant } from "./variant.shared"
@@ -381,9 +389,23 @@ async function runInteractiveRuntime(input: RunRuntimeInput, deps: RunRuntimeDep
         .list({ directory: ctx.directory })
         .then((x) => Object.values(x.data ?? {}))
         .catch(() => []),
-      ctx.sdk.command
-        .list({ directory: ctx.directory })
-        .then((x) => x.data ?? [])
+      // src/command is cut, and with it the /command endpoint that used to
+      // aggregate commands, MCP prompts and skills for this picker. Skills are
+      // kept (spec §2.1), so feed the picker from /skill directly.
+      ctx.sdk.app
+        .skills({ directory: ctx.directory })
+        .then((x) =>
+          (x.data ?? []).map(
+            (skill) =>
+              ({
+                name: skill.name,
+                description: skill.description,
+                source: "skill",
+                template: "",
+                hints: [],
+              }) satisfies RunCommand,
+          ),
+        )
         .catch(() => []),
     ])
     if (footer.isClosed) {

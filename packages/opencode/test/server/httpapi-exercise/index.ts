@@ -139,7 +139,6 @@ const scenarios: Scenario[] = [
     .inProject({ git: false })
     .at((ctx) => ({ path: "/vcs/apply", headers: ctx.headers(), body: { patch: "" } }))
     .status(400, undefined, "status"),
-  http.protected.get("/command", "command.list").json(200, array, "status"),
   http.protected.get("/agent", "app.agents").json(200, array, "status"),
   http.protected.get("/skill", "app.skills").json(200, array, "status"),
   http.protected.get("/lsp", "lsp.status").json(200, array),
@@ -675,7 +674,6 @@ const scenarios: Scenario[] = [
       body: { label: "Work" },
     }))
     .status(204, undefined, "status"),
-  http.protected.get("/api/command", "v2.command.list").json(200, locationData(array)),
   http.protected.get("/api/skill", "v2.skill.list").json(200, locationData(array)),
   http.protected
     .get("/api/event", "v2.event.subscribe")
@@ -1362,30 +1360,6 @@ const scenarios: Scenario[] = [
       check(body === true, "missing session abort should remain a no-op success")
     }),
   http.protected
-    .post("/session/{sessionID}/init", "session.init")
-    .preserveDatabase()
-    .withLlm()
-    .seeded((ctx) =>
-      Effect.gen(function* () {
-        const session = yield* ctx.session({ title: "Init session" })
-        const message = yield* ctx.message(session.id, { text: "initialize" })
-        yield* ctx.llmText("initialized")
-        yield* ctx.llmText("initialized")
-        return { session, message }
-      }),
-    )
-    .at((ctx) => ({
-      path: route("/session/{sessionID}/init", { sessionID: ctx.state.session.id }),
-      headers: ctx.headers(),
-      body: { providerID: "test", modelID: "test-model", messageID: ctx.state.message.info.id },
-    }))
-    .jsonEffect(200, (body, ctx) =>
-      Effect.gen(function* () {
-        check(body === true, "init should return true")
-        yield* ctx.llmWait(1)
-      }),
-    ),
-  http.protected
     .post("/session/{sessionID}/message", "session.prompt")
     .preserveDatabase()
     .withLlm()
@@ -1445,33 +1419,6 @@ const scenarios: Scenario[] = [
       Effect.gen(function* () {
         yield* ctx.llmWait(1)
       }),
-    ),
-  http.protected
-    .post("/session/{sessionID}/command", "session.command")
-    .preserveDatabase()
-    .withLlm()
-    .seeded((ctx) =>
-      Effect.gen(function* () {
-        const session = yield* ctx.session({ title: "Command session" })
-        yield* ctx.llmText("command done")
-        yield* ctx.llmText("command done")
-        return session
-      }),
-    )
-    .at((ctx) => ({
-      path: route("/session/{sessionID}/command", { sessionID: ctx.state.id }),
-      headers: ctx.headers(),
-      body: { command: "init", arguments: "", model: "test/test-model" },
-    }))
-    .jsonEffect(
-      200,
-      (body, ctx) =>
-        Effect.gen(function* () {
-          object(body)
-          check(isRecord(body.info) && body.info.role === "assistant", "command should return assistant message")
-          yield* ctx.llmWait(1)
-        }),
-      "status",
     ),
   http.protected
     .post("/session/{sessionID}/shell", "session.shell")
@@ -1659,10 +1606,8 @@ const scenarios: Scenario[] = [
 ]
 
 const llmScenarios = new Set([
-  "session.init",
   "session.prompt",
   "session.prompt_async",
-  "session.command",
   "session.summarize",
 ])
 

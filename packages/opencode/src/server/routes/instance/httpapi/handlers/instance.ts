@@ -1,5 +1,4 @@
 import { Agent } from "@/agent/agent"
-import { Command } from "@/command"
 import * as InstanceState from "@/effect/instance-state"
 import { Format } from "@/format"
 import { Global } from "@opencode-ai/core/global"
@@ -15,7 +14,6 @@ import { markInstanceForDisposal } from "../lifecycle"
 export const instanceHandlers = HttpApiBuilder.group(InstanceHttpApi, "instance", (handlers) =>
   Effect.gen(function* () {
     const agent = yield* Agent.Service
-    const command = yield* Command.Service
     const format = yield* Format.Service
     const lsp = yield* LSP.Service
     const skill = yield* Skill.Service
@@ -73,9 +71,6 @@ export const instanceHandlers = HttpApiBuilder.group(InstanceHttpApi, "instance"
       )
     })
 
-    const getCommand = Effect.fn("InstanceHttpApi.command")(function* () {
-      return yield* command.list()
-    })
 
     const getAgent = Effect.fn("InstanceHttpApi.agent")(function* () {
       return yield* agent.list()
@@ -101,7 +96,6 @@ export const instanceHandlers = HttpApiBuilder.group(InstanceHttpApi, "instance"
       .handle("vcsDiff", getVcsDiff)
       .handle("vcsDiffRaw", getVcsDiffRaw)
       .handle("vcsApply", applyVcs)
-      .handle("command", getCommand)
       .handle("agent", getAgent)
       .handle("skill", getSkill)
       .handle("lsp", getLsp)

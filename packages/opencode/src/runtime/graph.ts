@@ -8,7 +8,6 @@ import { FSUtil } from "@opencode-ai/core/fs-util"
 import { Agent } from "@/agent/agent"
 import { Auth } from "@/auth"
 import { BackgroundJob } from "@/background/job"
-import { Command } from "@/command"
 import { Config } from "@/config/config"
 import { Workspace } from "@/control-plane/workspace"
 import { Env } from "@/env"
@@ -95,7 +94,6 @@ export const app = LayerNode.group([
   LSP.node,
   MCP.node,
   McpAuth.node,
-  Command.node,
   Truncate.node,
   ToolRegistry.node,
   Format.node,

@@ -1,5 +1,4 @@
 import { Agent } from "@/agent/agent"
-import { Command } from "@/command"
 import { Format } from "@/format"
 import { LSP } from "@/lsp/lsp"
 import { Vcs } from "@/project/vcs"
@@ -48,7 +47,6 @@ export const InstancePaths = {
   vcsDiff: "/vcs/diff",
   vcsDiffRaw: "/vcs/diff/raw",
   vcsApply: "/vcs/apply",
-  command: "/command",
   agent: "/agent",
   skill: "/skill",
   lsp: "/lsp",
@@ -134,16 +132,6 @@ export const InstanceApi = HttpApi.make("instance")
             identifier: "vcs.apply",
             summary: "Apply VCS patch",
             description: "Apply a raw patch to the current working tree.",
-          }),
-        ),
-        HttpApiEndpoint.get("command", InstancePaths.command, {
-          query: WorkspaceRoutingQuery,
-          success: described(Schema.Array(Command.Info), "List of commands"),
-        }).annotateMerge(
-          OpenApi.annotations({
-            identifier: "command.list",
-            summary: "List commands",
-            description: "Get a list of all available commands in the OpenCode system.",
           }),
         ),
         HttpApiEndpoint.get("agent", InstancePaths.agent, {

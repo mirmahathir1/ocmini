@@ -175,7 +175,10 @@ function parseSlashCommand(text: string, commands: RunCommand[] | undefined) {
     return { type: "pending" as const }
   }
 
-  if (!commands.some((item) => item.name === head.name)) {
+  // src/command is cut: the catalog now carries skills only, and nothing in it
+  // can be executed server-side. Anything typed with a leading slash sends as
+  // ordinary prompt text.
+  if (!commands.some((item) => item.name === head.name && item.source !== "skill")) {
     return { type: "none" as const }
   }
 

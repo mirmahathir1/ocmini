@@ -57,18 +57,12 @@ export const UpdatePayload = Schema.Struct({
   ),
 })
 export const ForkPayload = Schema.Struct(Struct.omit(Session.ForkInput.fields, ["sessionID"]))
-export const InitPayload = Schema.Struct({
-  modelID: ModelV2.ID,
-  providerID: ProviderV2.ID,
-  messageID: MessageID,
-})
 export const SummarizePayload = Schema.Struct({
   providerID: ProviderV2.ID,
   modelID: ModelV2.ID,
   auto: Schema.optional(Schema.Boolean),
 })
 export const PromptPayload = Schema.Struct(Struct.omit(SessionPrompt.PromptInput.fields, ["sessionID"]))
-export const CommandPayload = Schema.Struct(Struct.omit(SessionPrompt.CommandInput.fields, ["sessionID"]))
 export const ShellPayload = Schema.Struct(Struct.omit(SessionPrompt.ShellInput.fields, ["sessionID"]))
 export const RevertPayload = Schema.Struct(Struct.omit(SessionRevert.RevertInput.fields, ["sessionID"]))
 export const PermissionResponsePayload = Schema.Struct({
@@ -89,11 +83,9 @@ export const SessionPaths = {
   update: `${root}/:sessionID`,
   fork: `${root}/:sessionID/fork`,
   abort: `${root}/:sessionID/abort`,
-  init: `${root}/:sessionID/init`,
   summarize: `${root}/:sessionID/summarize`,
   prompt: `${root}/:sessionID/message`,
   promptAsync: `${root}/:sessionID/prompt_async`,
-  command: `${root}/:sessionID/command`,
   shell: `${root}/:sessionID/shell`,
   revert: `${root}/:sessionID/revert`,
   unrevert: `${root}/:sessionID/unrevert`,
@@ -261,20 +253,6 @@ export const SessionApi = HttpApi.make("session")
             description: "Abort an active session and stop any ongoing AI processing or command execution.",
           }),
         ),
-        HttpApiEndpoint.post("init", SessionPaths.init, {
-          params: { sessionID: SessionID },
-          query: WorkspaceRoutingQuery,
-          payload: InitPayload,
-          success: described(Schema.Boolean, "200"),
-          error: [HttpApiError.BadRequest, ApiNotFoundError],
-        }).annotateMerge(
-          OpenApi.annotations({
-            identifier: "session.init",
-            summary: "Initialize session",
-            description:
-              "Analyze the current application and create an AGENTS.md file with project-specific agent configurations.",
-          }),
-        ),
         HttpApiEndpoint.post("summarize", SessionPaths.summarize, {
           params: { sessionID: SessionID },
           query: WorkspaceRoutingQuery,
@@ -313,19 +291,6 @@ export const SessionApi = HttpApi.make("session")
             summary: "Send async message",
             description:
               "Create and send a new message to a session asynchronously, starting the session if needed and returning immediately.",
-          }),
-        ),
-        HttpApiEndpoint.post("command", SessionPaths.command, {
-          params: { sessionID: SessionID },
-          query: WorkspaceRoutingQuery,
-          payload: CommandPayload,
-          success: described(SessionV1.WithParts, "Created message"),
-          error: [HttpApiError.BadRequest, ApiNotFoundError],
-        }).annotateMerge(
-          OpenApi.annotations({
-            identifier: "session.command",
-            summary: "Send command",
-            description: "Send a new command to a session for execution by the AI assistant.",
           }),
         ),
         HttpApiEndpoint.post("shell", SessionPaths.shell, {

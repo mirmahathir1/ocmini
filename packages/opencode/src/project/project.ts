@@ -8,8 +8,6 @@ import { WorkspaceTable } from "@opencode-ai/core/control-plane/workspace.sql"
 import { Flag } from "@opencode-ai/core/flag/flag"
 import { GlobalBus } from "@/bus/global"
 import { which } from "@opencode-ai/core/util/which"
-import { Command } from "@/command"
-import { InstanceState } from "@/effect/instance-state"
 import { Effect, Layer, Scope, Context, Stream, Types, Schema } from "effect"
 import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process"
 import { FSUtil } from "@opencode-ai/core/fs-util"
@@ -19,8 +17,6 @@ import { CrossSpawnSpawner } from "@opencode-ai/core/cross-spawn-spawner"
 import { AbsolutePath } from "@opencode-ai/core/schema"
 import { serviceUse } from "@opencode-ai/core/effect/service-use"
 import { RuntimeFlags } from "@/effect/runtime-flags"
-import { EventV2Bridge } from "@/event-v2-bridge"
-import { EventV2 } from "@opencode-ai/core/event"
 import { Project } from "@opencode-ai/schema/project"
 
 export const Info = Project.Info
@@ -110,7 +106,6 @@ const layer = Layer.effect(
     const spawner = yield* ChildProcessSpawner.ChildProcessSpawner
     const projectV2 = yield* ProjectV2.Service
     const projectDirectories = yield* ProjectDirectories.Service
-    const events = yield* EventV2Bridge.Service
     const flags = yield* RuntimeFlags.Service
     const { db } = yield* Database.Service
 
@@ -383,21 +378,9 @@ const layer = Layer.effect(
         .pipe(Effect.orDie)
     })
 
-    const initState = yield* InstanceState.make(
-      Effect.fn("Project.initState")(function* (ctx) {
-        const unsubscribe = yield* events.listen((event) => {
-          if (event.type !== Command.Event.Executed.type || event.location?.directory !== ctx.directory)
-            return Effect.void
-          const data = event.data as EventV2.Data<typeof Command.Event.Executed>
-          return data.name === Command.Default.INIT ? setInitialized(ctx.project.id) : Effect.void
-        })
-        yield* Effect.addFinalizer(() => unsubscribe)
-      }),
-    )
-
-    const init = Effect.fn("Project.init")(function* () {
-      yield* InstanceState.get(initState)
-    })
+    // Project initialisation used to be marked by watching for the INIT slash
+    // command; with src/command cut nothing publishes that event any more.
+    const init = Effect.fn("Project.init")(function* () {})
 
     const sandboxes = Effect.fn("Project.sandboxes")(function* (id: ProjectV2.ID) {
       const row = yield* db.select().from(ProjectTable).where(eq(ProjectTable.id, id)).get().pipe(Effect.orDie)
@@ -474,7 +457,6 @@ export const node = LayerNode.make({
     CrossSpawnSpawner.node,
     ProjectV2.node,
     ProjectDirectories.node,
-    EventV2Bridge.node,
     RuntimeFlags.node,
     Database.node,
   ],

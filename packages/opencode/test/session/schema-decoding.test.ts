@@ -300,14 +300,4 @@ describe("SessionPrompt input schemas", () => {
     expect(() => decode(bad)).toThrow()
   })
 
-  test("CommandInput round-trips core fields", () => {
-    const decode = decodeUnknown(SessionPrompt.CommandInput)
-    const expected = {
-      sessionID,
-      arguments: "--flag",
-      command: "deploy",
-    }
-    const input: unknown = expected
-    expect(decode(input)).toEqual(expected)
-  })
 })
