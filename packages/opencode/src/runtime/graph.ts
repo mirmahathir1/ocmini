@@ -5,7 +5,6 @@
 // §2.2). Nothing here knows about HTTP; createRoutes() layered that on top.
 import { LayerNode } from "@opencode-ai/core/effect/layer-node"
 import { FSUtil } from "@opencode-ai/core/fs-util"
-import { Account } from "@/account/account"
 import { Agent } from "@/agent/agent"
 import { Auth } from "@/auth"
 import { BackgroundJob } from "@/background/job"
@@ -62,7 +61,6 @@ export const app = LayerNode.group([
   FSUtil.node,
   Database.node,
   Auth.node,
-  Account.node,
   Config.node,
   Env.node,
   Git.node,
