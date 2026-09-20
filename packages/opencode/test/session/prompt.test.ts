@@ -21,7 +21,6 @@ import { Plugin } from "../../src/plugin"
 import { Provider as ProviderSvc } from "@/provider/provider"
 import { Env } from "../../src/env"
 import { Git } from "../../src/git"
-import { Image } from "../../src/image/image"
 
 import { Question } from "../../src/question"
 import { Todo } from "../../src/session/todo"
@@ -199,7 +198,6 @@ const promptRoot = LayerNode.group([
   Format.node,
   Truncate.node,
   SessionProcessor.node,
-  Image.node,
   SessionCompaction.node,
   SessionRevert.node,
   Instruction.node,
