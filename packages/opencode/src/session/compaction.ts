@@ -8,7 +8,6 @@ import { MessageV2 } from "./message-v2"
 import { Token } from "@/util/token"
 import { SessionProcessor } from "./processor"
 import { Agent } from "@/agent/agent"
-import { Plugin } from "@/plugin"
 import { Config } from "@/config/config"
 import { NotFoundError } from "@/storage/storage"
 
@@ -194,7 +193,6 @@ const layer = Layer.effect(
     const config = yield* Config.Service
     const session = yield* Session.Service
     const agents = yield* Agent.Service
-    const plugin = yield* Plugin.Service
     const processors = yield* SessionProcessor.Service
     const provider = yield* Provider.Service
     const events = yield* EventV2Bridge.Service
@@ -369,14 +367,8 @@ const layer = Layer.effect(
         cfg,
         model,
       })
-      // Allow plugins to inject context or replace compaction prompt.
-      const compacting = yield* plugin.trigger(
-        "experimental.session.compacting",
-        { sessionID: input.sessionID },
-        { context: [], prompt: undefined },
-      )
+      const compacting: { context: string[]; prompt: string | undefined } = { context: [], prompt: undefined }
       const msgs = structuredClone(selected.head)
-      yield* plugin.trigger("experimental.chat.messages.transform", {}, { messages: msgs })
       const conversation = msgs.map(serialize).filter(Boolean).join("\n\n")
       const nextPrompt =
         compacting.prompt ??
@@ -496,26 +488,7 @@ const layer = Layer.effect(
 
         if (!replay) {
           const info = yield* provider.getProvider(userMessage.model.providerID)
-          if (
-            (yield* plugin.trigger(
-              "experimental.compaction.autocontinue",
-              {
-                sessionID: input.sessionID,
-                agent: userMessage.agent,
-                model: yield* provider
-                  .getModel(userMessage.model.providerID, userMessage.model.modelID)
-                  .pipe(Effect.orDie),
-                provider: {
-                  source: info.source,
-                  info,
-                  options: info.options,
-                },
-                message: userMessage,
-                overflow: input.overflow === true,
-              },
-              { enabled: true },
-            )).enabled
-          ) {
+          {
             const continueMsg = yield* session.updateMessage({
               id: MessageID.ascending(),
               role: "user",
@@ -597,7 +570,6 @@ export const node = LayerNode.make({
     Config.node,
     Session.node,
     Agent.node,
-    Plugin.node,
     SessionProcessor.node,
     Provider.node,
     EventV2Bridge.node,

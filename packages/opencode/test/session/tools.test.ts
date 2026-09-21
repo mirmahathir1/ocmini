@@ -12,7 +12,6 @@ import { SessionTools } from "@/session/tools"
 import { Tool } from "@/tool/tool"
 import { ToolRegistry } from "@/tool/registry"
 import { Truncate } from "@/tool/truncate"
-import { Plugin } from "@/plugin"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { Effect, Layer, Schema } from "effect"
 import { testEffect } from "../lib/effect"
@@ -34,12 +33,6 @@ const model = {
   api: { id: "test-model" },
 } as Provider.Model
 
-const fakePlugin = Plugin.Service.of({
-  init: () => Effect.void,
-  list: () => Effect.succeed([]),
-  trigger: (_name, _input, output) => Effect.succeed(output),
-} satisfies Plugin.Interface)
-
 const fakePermission = Permission.Service.of({
   ask: () => Effect.void,
   reply: () => Effect.void,
@@ -54,7 +47,6 @@ const fakeTruncate = Truncate.Service.of({
 } satisfies Truncate.Interface)
 
 const layer = Layer.mergeAll(
-  Layer.succeed(Plugin.Service, fakePlugin),
   Layer.succeed(Permission.Service, fakePermission),
   Layer.succeed(Truncate.Service, fakeTruncate),
   RuntimeFlags.layer(),

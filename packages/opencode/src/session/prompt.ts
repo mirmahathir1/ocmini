@@ -14,7 +14,6 @@ import type { JSONSchema7 } from "@ai-sdk/provider"
 import { SessionCompaction } from "./compaction"
 import { SystemPrompt } from "./system"
 import { Instruction } from "./instruction"
-import { Plugin } from "../plugin"
 import { MAX_STEPS_PROMPT } from "@opencode-ai/core/session/runner/max-steps"
 import { ToolRegistry } from "@/tool/registry"
 import { LSP } from "@/lsp/lsp"
@@ -93,7 +92,6 @@ const layer = Layer.effect(
     const provider = yield* Provider.Service
     const processor = yield* SessionProcessor.Service
     const compaction = yield* SessionCompaction.Service
-    const plugin = yield* Plugin.Service
     const config = yield* Config.Service
     const permission = yield* Permission.Service
     const fsys = yield* FSUtil.Service
@@ -274,11 +272,6 @@ const layer = Layer.effect(
         subagent_type: task.agent,
         command: task.command,
       }
-      yield* plugin.trigger(
-        "tool.execute.before",
-        { tool: TaskTool.id, sessionID, callID: part.id },
-        { args: taskArgs },
-      )
 
       const taskAgent = yield* agents.get(task.agent)
       if (!taskAgent) {
@@ -356,11 +349,6 @@ const layer = Layer.effect(
         messageID: assistantMessage.id,
       }))
 
-      yield* plugin.trigger(
-        "tool.execute.after",
-        { tool: TaskTool.id, sessionID, callID: part.id, args: taskArgs },
-        result,
-      )
 
       assistantMessage.finish = "tool-calls"
       assistantMessage.time.completed = Date.now()
@@ -518,15 +506,10 @@ const layer = Layer.effect(
 
           const exit = yield* restore(
             Effect.gen(function* () {
-              const shellEnv = yield* plugin.trigger(
-                "shell.env",
-                { cwd, sessionID: input.sessionID, callID: part.callID },
-                { env: {} },
-              )
               const cmd = ChildProcess.make(sh, args, {
                 cwd,
                 extendEnv: true,
-                env: { ...shellEnv.env, TERM: "dumb" },
+                env: { TERM: "dumb" },
                 stdin: "ignore",
                 forceKillAfter: "3 seconds",
               })
@@ -881,17 +864,6 @@ const layer = Layer.effect(
         Effect.map((x) => x.flat().map(assign)),
       )
 
-      yield* plugin.trigger(
-        "chat.message",
-        {
-          sessionID: input.sessionID,
-          agent: input.agent,
-          model: input.model,
-          messageID: input.messageID,
-          variant: input.variant,
-        },
-        { message: info, parts: resolvedParts },
-      )
 
       const parts = resolvedParts
 
@@ -1107,7 +1079,6 @@ const layer = Layer.effect(
               messages: msgs,
               promptOps,
             }).pipe(
-              Effect.provideService(Plugin.Service, plugin),
               Effect.provideService(Permission.Service, permission),
               Effect.provideService(ToolRegistry.Service, registry),
               Effect.provideService(Truncate.Service, truncate),
@@ -1126,7 +1097,6 @@ const layer = Layer.effect(
             if (step === 1)
               yield* summary.summarize({ sessionID, messageID: lastUser.id }).pipe(Effect.ignore, Effect.forkIn(scope))
 
-            yield* plugin.trigger("experimental.chat.messages.transform", {}, { messages: msgs })
 
             const [skills, env, instructions, modelMsgs] = yield* Effect.all([
               sys.skills(agent),
@@ -1318,7 +1288,6 @@ export const node = LayerNode.make({
     Provider.node,
     SessionProcessor.node,
     SessionCompaction.node,
-    Plugin.node,
     Config.node,
     Permission.node,
     FSUtil.node,

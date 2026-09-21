@@ -11,14 +11,13 @@ import { RuntimeFlags } from "../../src/effect/runtime-flags"
 import { Global } from "@opencode-ai/core/global"
 import { Permission } from "../../src/permission"
 import { PermissionV1 } from "@opencode-ai/core/v1/permission"
-import { Plugin } from "../../src/plugin"
 import { Provider } from "../../src/provider/provider"
 import { Skill } from "../../src/skill"
 import { Truncate } from "../../src/tool/truncate"
 
 const agentLayer = (flags: Partial<RuntimeFlags.Info> = {}) =>
   LayerNode.compile(
-    LayerNode.group([Agent.node, Plugin.node, Provider.node, Auth.node, Config.node, Skill.node, RuntimeFlags.node]),
+    LayerNode.group([Agent.node, Provider.node, Auth.node, Config.node, Skill.node, RuntimeFlags.node]),
     [[RuntimeFlags.node, RuntimeFlags.layer(flags)]],
   )
 

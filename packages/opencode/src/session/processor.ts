@@ -6,7 +6,6 @@ import * as Stream from "effect/Stream"
 import { Agent } from "@/agent/agent"
 import { Config } from "@/config/config"
 import { Permission } from "@/permission"
-import { Plugin } from "@/plugin"
 import { Session } from "./session"
 import { LLM } from "./llm"
 import { MessageV2 } from "./message-v2"
@@ -83,7 +82,6 @@ const layer = Layer.effect(
     const agents = yield* Agent.Service
     const llm = yield* LLM.Service
     const permission = yield* Permission.Service
-    const plugin = yield* Plugin.Service
     const summary = yield* SessionSummary.Service
     const scope = yield* Scope.Scope
     const status = yield* SessionStatus.Service
@@ -483,15 +481,6 @@ const layer = Layer.effect(
             if (!ctx.currentText) return
             // oxlint-disable-next-line no-self-assign -- reactivity trigger
             ctx.currentText.text = ctx.currentText.text
-            ctx.currentText.text = (yield* plugin.trigger(
-              "experimental.text.complete",
-              {
-                sessionID: ctx.sessionID,
-                messageID: ctx.assistantMessage.id,
-                partID: ctx.currentText.id,
-              },
-              { text: ctx.currentText.text },
-            )).text
             {
               const end = Date.now()
               ctx.currentText.time = { start: ctx.currentText.time?.start ?? end, end }
@@ -660,7 +649,6 @@ export const node = LayerNode.make({
     Agent.node,
     LLM.node,
     Permission.node,
-    Plugin.node,
     SessionSummary.node,
     SessionStatus.node,
     EventV2Bridge.node,

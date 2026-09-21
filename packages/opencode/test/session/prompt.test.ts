@@ -15,7 +15,6 @@ import { BackgroundJob } from "@/background/job"
 import { Config } from "@/config/config"
 import { LSP } from "@/lsp/lsp"
 import { Permission } from "../../src/permission"
-import { Plugin } from "../../src/plugin"
 import { Provider as ProviderSvc } from "@/provider/provider"
 import { Env } from "../../src/env"
 import { Git } from "../../src/git"
@@ -145,7 +144,6 @@ const promptRoot = LayerNode.group([
   Env.node,
   AgentSvc.node,
   Permission.node,
-  Plugin.node,
   Config.node,
   ProviderSvc.node,
   LSP.node,

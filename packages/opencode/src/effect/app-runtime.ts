@@ -9,7 +9,6 @@ import { Config } from "@/config/config"
 import { Git } from "@/git"
 import { Ripgrep } from "@opencode-ai/core/ripgrep"
 import { Storage } from "@/storage/storage"
-import { Plugin } from "@/plugin"
 import { ModelsDev } from "@opencode-ai/core/models-dev"
 import { Provider } from "@/provider/provider"
 import { ProviderAuth } from "@/provider/auth"
@@ -54,7 +53,6 @@ export const AppLayer = AppNodeBuilderV1.build(
     Config.node,
     Git.node,
     Storage.node,
-      Plugin.node,
     ModelsDev.node,
     Provider.node,
     ProviderAuth.node,

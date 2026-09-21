@@ -7,7 +7,6 @@ import { Tool } from "@/tool/tool"
 import { ToolJsonSchema } from "@/tool/json-schema"
 import { ToolRegistry } from "@/tool/registry"
 
-import { Plugin } from "@/plugin"
 import type { TaskPromptOps } from "@/tool/task"
 import { type Tool as AITool, tool, jsonSchema, type ToolExecutionOptions } from "ai"
 import { Effect } from "effect"
@@ -29,7 +28,6 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
 }) {
   const tools: Record<string, AITool> = {}
   const run = yield* EffectBridge.make()
-  const plugin = yield* Plugin.Service
   const permission = yield* Permission.Service
   const registry = yield* ToolRegistry.Service
 
@@ -80,11 +78,6 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
         return run.promise(
           Effect.gen(function* () {
             const ctx = context(args, options)
-            yield* plugin.trigger(
-              "tool.execute.before",
-              { tool: item.id, sessionID: ctx.sessionID, callID: ctx.callID },
-              { args },
-            )
             const result = yield* item.execute(args, ctx)
             const output = {
               ...result,
@@ -95,11 +88,6 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
                 messageID: input.processor.message.id,
               })),
             }
-            yield* plugin.trigger(
-              "tool.execute.after",
-              { tool: item.id, sessionID: ctx.sessionID, callID: ctx.callID, args },
-              output,
-            )
             if (options.abortSignal?.aborted) {
               yield* input.processor.completeToolCall(options.toolCallId, output)
             }

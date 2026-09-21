@@ -16,7 +16,6 @@ import { Shell } from "@opencode-ai/core/shell"
 import { ShellID } from "./shell/id"
 
 import * as Truncate from "./truncate"
-import { Plugin } from "@/plugin"
 import { ChildProcess } from "effect/unstable/process"
 import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner"
 import { ShellPrompt, type Parameters } from "./shell/prompt"
@@ -342,7 +341,6 @@ export const ShellTool = Tool.define(
     const spawner = yield* ChildProcessSpawner
     const fs = yield* FSUtil.Service
     const trunc = yield* Truncate.Service
-    const plugin = yield* Plugin.Service
     const flags = yield* RuntimeFlags.Service
     const defaultTimeoutMs = flags.bashDefaultTimeoutMs ?? 2 * 60 * 1000
 
@@ -413,16 +411,8 @@ export const ShellTool = Tool.define(
       return scan
     })
 
-    const shellEnv = Effect.fn("ShellTool.shellEnv")(function* (ctx: Tool.Context, cwd: string) {
-      const extra = yield* plugin.trigger(
-        "shell.env",
-        { cwd, sessionID: ctx.sessionID, callID: ctx.callID },
-        { env: {} },
-      )
-      return {
-        ...process.env,
-        ...extra.env,
-      }
+    const shellEnv = Effect.fn("ShellTool.shellEnv")(function* (_ctx: Tool.Context, _cwd: string) {
+      return { ...process.env }
     })
 
     const run = Effect.fn("ShellTool.run")(function* (

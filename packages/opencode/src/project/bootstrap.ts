@@ -1,5 +1,4 @@
 import { makeGlobalNode } from "@opencode-ai/core/effect/app-node"
-import { Plugin } from "../plugin"
 import { Format } from "../format"
 import { LSP } from "@/lsp/lsp"
 import * as Project from "./project"
@@ -21,7 +20,6 @@ const layer = Layer.effect(
     const config = yield* Config.Service
     const format = yield* Format.Service
     const lsp = yield* LSP.Service
-    const plugin = yield* Plugin.Service
     const project = yield* Project.Service
     const vcs = yield* Vcs.Service
 
@@ -30,8 +28,6 @@ const layer = Layer.effect(
       yield* Effect.logInfo("bootstrapping", { directory: ctx.directory })
       // everything depends on config so eager load it for nice traces
       yield* config.get()
-      // Plugin can mutate config so it has to be initialized before anything else.
-      yield* plugin.init()
       // Each service self-manages its own slow work via Effect.forkScoped against
       // its per-instance state scope. We just await materialization here.
       yield* Effect.forEach(
@@ -48,7 +44,7 @@ const layer = Layer.effect(
 export const node = makeGlobalNode({
   service: Service,
   layer: layer,
-  deps: [Config.node, Format.node, LSP.node, Plugin.node, Project.node, Vcs.node],
+  deps: [Config.node, Format.node, LSP.node, Project.node, Vcs.node],
 })
 
 export * as InstanceBootstrap from "./bootstrap"

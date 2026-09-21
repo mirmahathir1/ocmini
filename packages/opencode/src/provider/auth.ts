@@ -4,7 +4,6 @@ import { serviceUse } from "@opencode-ai/core/effect/service-use"
 import { Auth } from "@/auth"
 import { InstanceState } from "@/effect/instance-state"
 import { optional } from "@opencode-ai/core/schema"
-import { Plugin } from "../plugin"
 import { ProviderV2 } from "@opencode-ai/core/provider"
 import { Array as Arr, Effect, Layer, Record, Result, Context, Schema } from "effect"
 
@@ -106,22 +105,14 @@ export class Service extends Context.Service<Service, Interface>()("@opencode/Pr
 
 export const use = serviceUse(Service)
 
-const layer: Layer.Layer<Service, never, Auth.Service | Plugin.Service> = Layer.effect(
+const layer: Layer.Layer<Service, never, Auth.Service> = Layer.effect(
   Service,
   Effect.gen(function* () {
     const auth = yield* Auth.Service
-    const plugin = yield* Plugin.Service
     const state = yield* InstanceState.make<State>(
       Effect.fn("ProviderAuth.state")(function* () {
-        const plugins = yield* plugin.list()
         return {
-          hooks: Record.fromEntries(
-            Arr.filterMap(plugins, (x) =>
-              x.auth?.provider !== undefined
-                ? Result.succeed([ProviderV2.ID.make(x.auth.provider), x.auth] as const)
-                : Result.failVoid,
-            ),
-          ),
+          hooks: {} as State["hooks"],
           pending: new Map<ProviderV2.ID, AuthOAuthResult>(),
         }
       }),
@@ -224,6 +215,6 @@ const layer: Layer.Layer<Service, never, Auth.Service | Plugin.Service> = Layer.
   }),
 )
 
-export const node = LayerNode.make({ service: Service, layer: layer, deps: [Auth.node, Plugin.node] })
+export const node = LayerNode.make({ service: Service, layer: layer, deps: [Auth.node] })
 
 export * as ProviderAuth from "./auth"

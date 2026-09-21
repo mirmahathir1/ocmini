@@ -15,7 +15,6 @@ import { ProviderTransform } from "@/provider/transform"
 import { Config } from "@/config/config"
 import type { Agent } from "@/agent/agent"
 import type { MessageV2 } from "./message-v2"
-import { Plugin } from "@/plugin"
 import { Permission } from "@/permission"
 import { EventV2Bridge } from "@/event-v2-bridge"
 import { EventV2 } from "@opencode-ai/core/event"
@@ -65,7 +64,6 @@ const live: Layer.Layer<
   | Auth.Service
   | Config.Service
   | Provider.Service
-  | Plugin.Service
   | Permission.Service
   | EventV2Bridge.Service
   | LLMClientService
@@ -76,7 +74,6 @@ const live: Layer.Layer<
     const auth = yield* Auth.Service
     const config = yield* Config.Service
     const provider = yield* Provider.Service
-    const plugin = yield* Plugin.Service
     const perm = yield* Permission.Service
     const events = yield* EventV2Bridge.Service
     const llmClient = yield* LLMClient.Service
@@ -107,7 +104,6 @@ const live: Layer.Layer<
         ...input,
         provider: item,
         auth: info,
-        plugin,
         flags,
         isWorkflow,
       })
@@ -393,7 +389,6 @@ export const node = LayerNode.make({
     Auth.node,
     Config.node,
     Provider.node,
-    Plugin.node,
     Permission.node,
     EventV2Bridge.node,
     llmClient,

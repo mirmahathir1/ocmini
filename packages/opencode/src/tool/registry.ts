@@ -22,7 +22,6 @@ import { type ToolContext as PluginToolContext, type ToolDefinition } from "@ope
 import type { JSONSchema7, JSONSchema7Definition } from "@ai-sdk/provider"
 import { Schema } from "effect"
 import z from "zod"
-import { Plugin } from "../plugin"
 import { Provider } from "@/provider/provider"
 
 import { WebSearchTool } from "./websearch"
@@ -89,7 +88,6 @@ const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
     const config = yield* Config.Service
-    const plugin = yield* Plugin.Service
     const agents = yield* Agent.Service
     const truncate = yield* Truncate.Service
     const flags = yield* RuntimeFlags.Service
@@ -189,13 +187,6 @@ const layer = Layer.effect(
           }
         }
 
-        const plugins = yield* plugin.list()
-        for (const p of plugins) {
-          for (const [id, def] of Object.entries(p.tool ?? {})) {
-            custom.push(fromPlugin(id, def))
-          }
-        }
-
         yield* config.get()
         const questionEnabled = ["app", "cli", "desktop"].includes(flags.client) || flags.enableQuestionTool
 
@@ -285,7 +276,6 @@ const layer = Layer.effect(
             parameters: tool.parameters,
             jsonSchema: tool.jsonSchema,
           }
-          yield* plugin.trigger("tool.definition", { toolID: tool.id }, output)
           const jsonSchema =
             output.parameters === tool.parameters || output.jsonSchema !== tool.jsonSchema
               ? output.jsonSchema
@@ -398,7 +388,6 @@ export const node = LayerNode.make({
   layer,
   deps: [
     Config.node,
-    Plugin.node,
     Question.node,
     Todo.node,
     Agent.node,

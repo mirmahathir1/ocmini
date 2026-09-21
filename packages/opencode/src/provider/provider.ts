@@ -7,7 +7,6 @@ import { mapValues, mergeDeep, omit, pickBy, sortBy } from "remeda"
 import { NoSuchModelError, type Provider as SDK } from "ai"
 import { Npm } from "@opencode-ai/core/npm"
 import { Hash } from "@opencode-ai/core/util/hash"
-import { Plugin } from "../plugin"
 import { serviceUse } from "@opencode-ai/core/effect/service-use"
 import { type LanguageModelV3 } from "@ai-sdk/provider"
 import { ModelsDev } from "@opencode-ai/core/models-dev"
@@ -1393,7 +1392,6 @@ const layer = Layer.effect(
     const config = yield* Config.Service
     const auth = yield* Auth.Service
     const env = yield* Env.Service
-    const plugin = yield* Plugin.Service
     const modelsDevSvc = yield* ModelsDev.Service
     const runtimeFlags = yield* RuntimeFlags.Service
 
@@ -1437,10 +1435,6 @@ const layer = Layer.effect(
           providers[providerID] = mergeDeep(match, provider)
         }
 
-        // load plugins first so config() hook runs before reading cfg.provider
-        const plugins = yield* plugin.list()
-
-        // now read config providers - includes any modifications from plugin config() hook
         const configProviders = Object.entries(cfg.provider ?? {})
         const disabled = new Set(cfg.disabled_providers ?? [])
         const enabled = cfg.enabled_providers ? new Set(cfg.enabled_providers) : null
@@ -1449,33 +1443,6 @@ const layer = Layer.effect(
           if (enabled && !enabled.has(providerID)) return false
           if (disabled.has(providerID)) return false
           return true
-        }
-
-        for (const hook of plugins) {
-          const p = hook.provider
-          const models = p?.models
-          if (!p || !models) continue
-
-          const providerID = ProviderV2.ID.make(p.id)
-          if (disabled.has(providerID)) continue
-
-          const provider = database[providerID]
-          if (!provider) continue
-          const pluginAuth = yield* auth.get(providerID).pipe(Effect.orDie)
-
-          provider.models = yield* Effect.promise(async () => {
-            const next = await models(toPublicInfo(provider), { auth: pluginAuth })
-            return Object.fromEntries(
-              Object.entries(next).map(([id, model]) => [
-                id,
-                {
-                  ...model,
-                  id: ModelV2.ID.make(id),
-                  providerID,
-                },
-              ]),
-            )
-          })
         }
 
         // extend database from config
@@ -1603,27 +1570,6 @@ const layer = Layer.effect(
               key: provider.key,
             })
           }
-        }
-
-        // plugin auth loader - database now has entries for config providers
-        for (const plugin of plugins) {
-          if (!plugin.auth) continue
-          const providerID = ProviderV2.ID.make(plugin.auth.provider)
-          if (disabled.has(providerID)) continue
-
-          const stored = yield* auth.get(providerID).pipe(Effect.orDie)
-          if (!stored) continue
-          if (!plugin.auth.loader) continue
-
-          const options = yield* Effect.promise(() =>
-            plugin.auth!.loader!(
-              () => bridge.promise(auth.get(providerID).pipe(Effect.orDie)) as any,
-              toPublicInfo(database[plugin.auth!.provider]),
-            ),
-          )
-          const opts = options ?? {}
-          const patch: Partial<Info> = providers[providerID] ? { options: opts } : { source: "custom", options: opts }
-          mergeProvider(providerID, patch)
         }
 
         for (const [id, fn] of Object.entries(custom(dep))) {
@@ -1950,19 +1896,6 @@ const layer = Layer.effect(
       const provider = s.providers[providerID]
       if (!provider) return undefined
 
-      const experimental = yield* plugin.trigger<"experimental.provider.small_model">(
-        "experimental.provider.small_model",
-        { provider: toPublicInfo(provider) },
-        { model: undefined },
-      )
-      if (experimental.model) {
-        return {
-          ...experimental.model,
-          id: ModelV2.ID.make(experimental.model.id),
-          providerID: ProviderV2.ID.make(experimental.model.providerID),
-        }
-      }
-
       // TODO: Remove these provider-specific assumptions once model syncing reliably reports available deployments.
       if (providerID === ProviderV2.ID.azure || providerID === ProviderV2.ID.make("azure-cognitive-services")) {
         return undefined
@@ -2066,7 +1999,7 @@ export function parseModel(model: string) {
 export const node = LayerNode.make({
   service: Service,
   layer: layer,
-  deps: [FSUtil.node, Config.node, Auth.node, Env.node, Plugin.node, ModelsDev.node, RuntimeFlags.node],
+  deps: [FSUtil.node, Config.node, Auth.node, Env.node, ModelsDev.node, RuntimeFlags.node],
 })
 
 export * as Provider from "./provider"
