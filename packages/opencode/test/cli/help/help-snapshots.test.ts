@@ -45,7 +45,6 @@ function normalize(text: string): string {
 const TOP_LEVEL = [
   "attach",
   "run",
-  "debug",
   "providers", // aliased to `auth`
   "agent",
   "serve",
