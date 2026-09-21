@@ -1,21 +1,4 @@
-export * from "./client.js"
-export * from "./server.js"
-
-import { createOpencodeClient } from "./client.js"
-import { createOpencodeServer } from "./server.js"
-import type { ServerOptions } from "./server.js"
-
-export async function createOpencode(options?: ServerOptions) {
-  const server = await createOpencodeServer({
-    ...options,
-  })
-
-  const client = createOpencodeClient({
-    baseUrl: server.url,
-  })
-
-  return {
-    client,
-    server,
-  }
-}
+// The v1 client and server are cut (§2.2, SDKs and generated clients); only the
+// generated v1 types survive, because @opencode-ai/plugin's Hooks is written in
+// terms of them. The live transport is @opencode-ai/sdk/v2.
+export * from "./gen/types.gen.js"

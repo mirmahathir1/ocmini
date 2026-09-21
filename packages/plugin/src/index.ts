@@ -1,6 +1,5 @@
 import type {
   Event,
-  createOpencodeClient,
   Project,
   Model,
   Provider,
@@ -54,7 +53,8 @@ export type WorkspaceAdapter = {
 }
 
 export type PluginInput = {
-  client: ReturnType<typeof createOpencodeClient>
+  // The v1 SDK client is cut; nothing reads this field any more.
+  client: unknown
   project: Project
   directory: string
   worktree: string
