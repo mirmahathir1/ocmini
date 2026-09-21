@@ -2,7 +2,7 @@ import { LayerNode } from "@opencode-ai/core/effect/layer-node"
 import { Effect, Layer, Context, Schema } from "effect"
 import { SessionV1 } from "@opencode-ai/core/v1/session"
 import { EventV2Bridge } from "@/event-v2-bridge"
-import { Snapshot } from "@/snapshot"
+import { Info as FileDiff } from "@opencode-ai/schema/file-diff"
 import { Session } from "./session"
 import { SessionID, MessageID } from "./schema"
 import { Config } from "@/config/config"
@@ -65,8 +65,8 @@ function unquoteGitPath(input: string) {
 
 export interface Interface {
   readonly summarize: (input: { sessionID: SessionID; messageID: MessageID }) => Effect.Effect<void>
-  readonly diff: (input: { sessionID: SessionID; messageID?: MessageID }) => Effect.Effect<Snapshot.FileDiff[]>
-  readonly computeDiff: (input: { messages: SessionV1.WithParts[] }) => Effect.Effect<Snapshot.FileDiff[]>
+  readonly diff: (input: { sessionID: SessionID; messageID?: MessageID }) => Effect.Effect<(typeof FileDiff.Type)[]>
+  readonly computeDiff: (input: { messages: SessionV1.WithParts[] }) => Effect.Effect<(typeof FileDiff.Type)[]>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/SessionSummary") {}
@@ -75,28 +75,15 @@ const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
     const sessions = yield* Session.Service
-    const snapshot = yield* Snapshot.Service
     const events = yield* EventV2Bridge.Service
     const config = yield* Config.Service
 
-    const computeDiff = Effect.fn("SessionSummary.computeDiff")(function* (input: { messages: SessionV1.WithParts[] }) {
-      let from: string | undefined
-      let to: string | undefined
-      for (const item of input.messages) {
-        if (!from) {
-          for (const part of item.parts) {
-            if (part.type === "step-start" && part.snapshot) {
-              from = part.snapshot
-              break
-            }
-          }
-        }
-        for (const part of item.parts) {
-          if (part.type === "step-finish" && part.snapshot) to = part.snapshot
-        }
-      }
-      if (from && to) return yield* snapshot.diffFull(from, to)
-      return []
+    // src/snapshot is cut, so there are no checkpoints to diff between: step
+    // parts no longer carry a snapshot hash and this is permanently empty.
+    const computeDiff = Effect.fn("SessionSummary.computeDiff")(function* (_input: {
+      messages: SessionV1.WithParts[]
+    }) {
+      return [] as (typeof FileDiff.Type)[]
     })
 
     const summarize = Effect.fn("SessionSummary.summarize")(function* (input: {
@@ -154,7 +141,7 @@ export type DiffInput = Schema.Schema.Type<typeof DiffInput>
 export const node = LayerNode.make({
   service: Service,
   layer: layer,
-  deps: [Session.node, Snapshot.node, EventV2Bridge.node, Config.node],
+  deps: [Session.node, EventV2Bridge.node, Config.node],
 })
 
 export * as SessionSummary from "./summary"

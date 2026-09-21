@@ -5,12 +5,11 @@ import { SessionV1 } from "@opencode-ai/core/v1/session"
 import { Session } from "@/session/session"
 import { MessageV2 } from "@/session/message-v2"
 import { SessionPrompt } from "@/session/prompt"
-import { SessionRevert } from "@/session/revert"
 import { SessionStatus } from "@/session/status"
 import { SessionSummary } from "@/session/summary"
 import { Todo } from "@/session/todo"
 import { MessageID, PartID, SessionID } from "@/session/schema"
-import { Snapshot } from "@/snapshot"
+import { Info as FileDiff } from "@opencode-ai/schema/file-diff"
 import { Schema, Struct } from "effect"
 import { HttpApi, HttpApiEndpoint, HttpApiError, HttpApiGroup, HttpApiSchema, OpenApi } from "effect/unstable/httpapi"
 import { Authorization } from "../middleware/authorization"
@@ -64,7 +63,6 @@ export const SummarizePayload = Schema.Struct({
 })
 export const PromptPayload = Schema.Struct(Struct.omit(SessionPrompt.PromptInput.fields, ["sessionID"]))
 export const ShellPayload = Schema.Struct(Struct.omit(SessionPrompt.ShellInput.fields, ["sessionID"]))
-export const RevertPayload = Schema.Struct(Struct.omit(SessionRevert.RevertInput.fields, ["sessionID"]))
 export const PermissionResponsePayload = Schema.Struct({
   response: PermissionV1.Reply,
 })
@@ -87,8 +85,6 @@ export const SessionPaths = {
   prompt: `${root}/:sessionID/message`,
   promptAsync: `${root}/:sessionID/prompt_async`,
   shell: `${root}/:sessionID/shell`,
-  revert: `${root}/:sessionID/revert`,
-  unrevert: `${root}/:sessionID/unrevert`,
   permissions: `${root}/:sessionID/permissions/:permissionID`,
   deleteMessage: `${root}/:sessionID/message/:messageID`,
   deletePart: `${root}/:sessionID/message/:messageID/part/:partID`,
@@ -159,7 +155,7 @@ export const SessionApi = HttpApi.make("session")
         HttpApiEndpoint.get("diff", SessionPaths.diff, {
           params: { sessionID: SessionID },
           query: DiffQuery,
-          success: described(Schema.Array(Snapshot.FileDiff), "Successfully retrieved diff"),
+          success: described(Schema.Array(FileDiff), "Successfully retrieved diff"),
         }).annotateMerge(
           OpenApi.annotations({
             identifier: "session.diff",
@@ -304,32 +300,6 @@ export const SessionApi = HttpApi.make("session")
             identifier: "session.shell",
             summary: "Run shell command",
             description: "Execute a shell command within the session context and return the AI's response.",
-          }),
-        ),
-        HttpApiEndpoint.post("revert", SessionPaths.revert, {
-          params: { sessionID: SessionID },
-          query: WorkspaceRoutingQuery,
-          payload: RevertPayload,
-          success: described(Session.Info, "Updated session"),
-          error: [HttpApiError.BadRequest, ApiNotFoundError, SessionBusyError],
-        }).annotateMerge(
-          OpenApi.annotations({
-            identifier: "session.revert",
-            summary: "Revert message",
-            description:
-              "Revert a specific message in a session, undoing its effects and restoring the previous state.",
-          }),
-        ),
-        HttpApiEndpoint.post("unrevert", SessionPaths.unrevert, {
-          params: { sessionID: SessionID },
-          query: WorkspaceRoutingQuery,
-          success: described(Session.Info, "Updated session"),
-          error: [HttpApiError.BadRequest, ApiNotFoundError, SessionBusyError],
-        }).annotateMerge(
-          OpenApi.annotations({
-            identifier: "session.unrevert",
-            summary: "Restore reverted messages",
-            description: "Restore all previously reverted messages in a session.",
           }),
         ),
         HttpApiEndpoint.post("permissionRespond", SessionPaths.permissions, {

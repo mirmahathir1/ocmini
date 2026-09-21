@@ -9,7 +9,6 @@ import { Config } from "@/config/config"
 import { Git } from "@/git"
 import { Ripgrep } from "@opencode-ai/core/ripgrep"
 import { Storage } from "@/storage/storage"
-import { Snapshot } from "@/snapshot"
 import { Plugin } from "@/plugin"
 import { ModelsDev } from "@opencode-ai/core/models-dev"
 import { Provider } from "@/provider/provider"
@@ -25,7 +24,6 @@ import { SessionStatus } from "@/session/status"
 import { SessionRunState } from "@/session/run-state"
 import { SessionProcessor } from "@/session/processor"
 import { SessionCompaction } from "@/session/compaction"
-import { SessionRevert } from "@/session/revert"
 import { SessionSummary } from "@/session/summary"
 import { SessionPrompt } from "@/session/prompt"
 import { Instruction } from "@/session/instruction"
@@ -56,8 +54,7 @@ export const AppLayer = AppNodeBuilderV1.build(
     Config.node,
     Git.node,
     Storage.node,
-    Snapshot.node,
-    Plugin.node,
+      Plugin.node,
     ModelsDev.node,
     Provider.node,
     ProviderAuth.node,
@@ -76,8 +73,7 @@ export const AppLayer = AppNodeBuilderV1.build(
     SessionRunState.node,
     SessionProcessor.node,
     SessionCompaction.node,
-    SessionRevert.node,
-    SessionSummary.node,
+      SessionSummary.node,
     SessionPrompt.node,
     Instruction.node,
     LLM.node,

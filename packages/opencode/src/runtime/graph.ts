@@ -28,7 +28,6 @@ import { Instruction } from "@/session/instruction"
 import { LLM } from "@/session/llm"
 import { SessionProcessor } from "@/session/processor"
 import { SessionPrompt } from "@/session/prompt"
-import { SessionRevert } from "@/session/revert"
 import { SessionRunState } from "@/session/run-state"
 import { Session } from "@/session/session"
 import { SessionStatus } from "@/session/status"
@@ -36,7 +35,6 @@ import { SessionSummary } from "@/session/summary"
 import { Todo } from "@/session/todo"
 import { Skill } from "@/skill"
 import { Discovery } from "@/skill/discovery"
-import { Snapshot } from "@/snapshot"
 import { Storage } from "@/storage/storage"
 import { ToolRegistry } from "@/tool/registry"
 import { Truncate } from "@/tool/truncate"
@@ -63,7 +61,6 @@ export const app = LayerNode.group([
   Git.node,
   Ripgrep.node,
   Storage.node,
-  Snapshot.node,
   Plugin.node,
   ModelsDev.node,
   Provider.node,
@@ -84,7 +81,6 @@ export const app = LayerNode.group([
   SessionRunState.node,
   SessionProcessor.node,
   SessionCompaction.node,
-  SessionRevert.node,
   SessionSummary.node,
   SessionPrompt.node,
   Instruction.node,

@@ -32,7 +32,6 @@ import { SessionSummary } from "../../src/session/summary"
 import { Instruction } from "../../src/session/instruction"
 import { SessionProcessor } from "../../src/session/processor"
 import { SessionPrompt } from "../../src/session/prompt"
-import { SessionRevert } from "../../src/session/revert"
 import { SessionRunState } from "../../src/session/run-state"
 import { MessageID, PartID, SessionID } from "../../src/session/schema"
 import { SessionStatus } from "../../src/session/status"
@@ -41,7 +40,6 @@ import { SessionExecution } from "@opencode-ai/core/session/execution"
 import { Skill } from "../../src/skill"
 import { SystemPrompt } from "../../src/session/system"
 import { Shell } from "@opencode-ai/core/shell"
-import { Snapshot } from "../../src/snapshot"
 import { ToolRegistry } from "@/tool/registry"
 import { Truncate } from "@/tool/truncate"
 import { CrossSpawnSpawner } from "@opencode-ai/core/cross-spawn-spawner"
@@ -143,7 +141,6 @@ const promptRoot = LayerNode.group([
   Session.node,
   SessionProjector.node,
   MessageV2.node,
-  Snapshot.node,
   LLM.node,
   Env.node,
   AgentSvc.node,
@@ -168,7 +165,6 @@ const promptRoot = LayerNode.group([
   Truncate.node,
   SessionProcessor.node,
   SessionCompaction.node,
-  SessionRevert.node,
   Instruction.node,
   SystemPrompt.node,
   CrossSpawnSpawner.node,

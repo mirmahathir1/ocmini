@@ -1051,21 +1051,6 @@ describe("session HttpApi", () => {
         const headers = { "x-opencode-directory": test.directory, "content-type": "application/json" }
         const session = yield* createSession({ title: "remaining" })
 
-        expect(
-          yield* requestJson<Session.Info>(pathFor(SessionPaths.revert, { sessionID: session.id }), {
-            method: "POST",
-            headers,
-            body: JSON.stringify({ messageID: MessageID.ascending() }),
-          }),
-        ).toMatchObject({ id: session.id })
-
-        expect(
-          yield* requestJson<Session.Info>(pathFor(SessionPaths.unrevert, { sessionID: session.id }), {
-            method: "POST",
-            headers,
-          }),
-        ).toMatchObject({ id: session.id })
-
         const permissionID = String(PermissionV1.ID.ascending())
         const permission = yield* request(
           pathFor(SessionPaths.permissions, {

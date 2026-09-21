@@ -9,7 +9,6 @@ import { InstanceRef } from "../../src/effect/instance-ref"
 import { InstanceBootstrap } from "../../src/project/bootstrap"
 import { InstanceStore } from "../../src/project/instance-store"
 import { GlobalBus, type GlobalEvent } from "../../src/bus/global"
-import { Snapshot } from "../../src/snapshot"
 import { resetDatabase } from "../fixture/db"
 import { disposeAllInstances, TestInstance } from "../fixture/fixture"
 import { testEffect } from "../lib/effect"
@@ -24,7 +23,7 @@ const noopBootstrap = Layer.succeed(InstanceBootstrap.Service, InstanceBootstrap
 const testInstanceStore = AppNodeBuilder.build(InstanceStore.node, [[InstanceStore.bootstrapNode, noopBootstrap]])
 
 const it = testEffect(
-  Layer.mergeAll(AppNodeBuilder.build(LayerNode.group([FSUtil.node, Snapshot.node])), testInstanceStore, httpApiLayer),
+  Layer.mergeAll(AppNodeBuilder.build(LayerNode.group([FSUtil.node])), testInstanceStore, httpApiLayer),
 )
 
 function request(directory: string, url: string, init: RequestInit = {}) {
@@ -81,11 +80,7 @@ describe("project.initGit endpoint", () => {
         worktree: tmp.directory,
       })
 
-      const ctx = yield* InstanceStore.use.reload({ directory: tmp.directory })
-      const tracked = yield* Snapshot.Service.use((snapshot) => snapshot.track()).pipe(
-        Effect.provideService(InstanceRef, ctx),
-      )
-      expect(tracked).toBeTruthy()
+      yield* InstanceStore.use.reload({ directory: tmp.directory })
     }),
   )
 

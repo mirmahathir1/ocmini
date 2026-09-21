@@ -3,7 +3,6 @@ import { Schema } from "effect"
 
 import { Session } from "@/session/session"
 import { SessionPrompt } from "../../src/session/prompt"
-import { SessionRevert } from "../../src/session/revert"
 import { SessionStatus } from "../../src/session/status"
 import { SessionSummary } from "../../src/session/summary"
 import { Todo } from "../../src/session/todo"
@@ -195,20 +194,6 @@ describe("Session input schemas", () => {
     const decode = decodeUnknown(Session.MessagesInput)
     expect(decode({ sessionID })).toEqual({ sessionID })
     expect(decode({ sessionID, limit: 50 })).toEqual({ sessionID, limit: 50 })
-  })
-})
-
-describe("SessionRevert.RevertInput", () => {
-  const decode = decodeUnknown(SessionRevert.RevertInput)
-
-  test("messageID is required, partID is optional", () => {
-    const withPart = { sessionID, messageID, partID }
-    expect(decode(withPart)).toEqual(withPart)
-
-    const noPart = { sessionID, messageID }
-    expect(decode(noPart)).toEqual(noPart)
-
-    expect(() => decode({ sessionID })).toThrow()
   })
 })
 
