@@ -293,7 +293,10 @@ describe("HttpApi Server.listen", () => {
       return true
     }) as typeof process.stderr.write
     try {
-      const response = await Server.Default().app.request("/status")
+      // Any 200 route will do -- this test is about stderr, not routing. It used
+      // to hit "/status", which only answered because the web UI catch-all served
+      // index.html for unknown paths; that route is cut, so use a real one.
+      const response = await Server.Default().app.request("/doc")
       expect(response.status).toBe(200)
     } finally {
       process.stderr.write = original

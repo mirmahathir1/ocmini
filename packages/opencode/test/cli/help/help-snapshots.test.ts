@@ -48,7 +48,6 @@ const TOP_LEVEL = [
   "providers", // aliased to `auth`
   "agent",
   "serve",
-  "web",
   "models",
   "stats",
   "plugin",

@@ -13,7 +13,6 @@ import { StatsCommand } from "./cli/cmd/stats"
 import { AttachCommand } from "./cli/cmd/attach"
 import { TuiThreadCommand } from "./cli/cmd/tui"
 import { EOL } from "os"
-import { WebCommand } from "./cli/cmd/web"
 import { errorMessage } from "./util/error"
 import { PluginCommand } from "./cli/cmd/plug"
 import { Heap } from "./cli/heap"
@@ -73,7 +72,6 @@ const cli = yargs(args)
   .command(ProvidersCommand)
   .command(AgentCommand)
   .command(ServeCommand)
-  .command(WebCommand)
   .command(ModelsCommand)
   .command(StatsCommand)
   .command(PluginCommand)
