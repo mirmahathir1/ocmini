@@ -69,7 +69,6 @@ export type RunInput = {
   initialInput?: string
   thinking: boolean
   backgroundSubagents: boolean
-  demo?: boolean
 }
 
 // The semantic role of a scrollback entry. Maps 1:1 to theme colors.

@@ -249,12 +249,6 @@ export const RunCommand = effectCmd({
         type: "boolean",
         hidden: true,
         default: false,
-      })
-      .option("demo", {
-        type: "boolean",
-        default: false,
-        hidden: true,
-        describe: "enable direct interactive demo slash commands; pass one as the message to run it immediately",
       }),
   handler: Effect.fn("Cli.run")(function* (args) {
     const { Agent } = yield* Effect.promise(() => import("@/agent/agent"))
@@ -291,10 +285,6 @@ export const RunCommand = effectCmd({
 
       if (interactive && args._?.[0] !== "mini") {
         die("--mini must be used without the run subcommand")
-      }
-
-      if (args.demo && !interactive) {
-        die("--demo requires --mini")
       }
 
       if (interactive && args.format === "json") {
@@ -874,7 +864,6 @@ export const RunCommand = effectCmd({
             createSession: createFreshSession,
             thinking,
             backgroundSubagents: flags.experimentalBackgroundSubagents,
-            demo: args.demo,
           })
         } catch (error) {
           dieInteractive(error)
@@ -910,7 +899,6 @@ export const RunCommand = effectCmd({
             initialInput,
             thinking,
             backgroundSubagents: flags.experimentalBackgroundSubagents,
-            demo: args.demo,
           })
         } catch (error) {
           dieInteractive(error)
@@ -953,7 +941,6 @@ type MiniCommandInput = {
   prompt?: string
   replay?: boolean
   replayLimit?: number
-  demo?: boolean
 }
 
 export async function runMini(input: MiniCommandInput) {
@@ -988,6 +975,5 @@ export async function runMini(input: MiniCommandInput) {
     yolo: false,
     "dangerously-skip-permissions": false,
     dangerouslySkipPermissions: false,
-    demo: input.demo ?? false,
   })
 }
