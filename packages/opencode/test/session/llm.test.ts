@@ -1371,7 +1371,9 @@ describe("session.llm.stream", () => {
         expect((body.reasoning as { mode?: string } | undefined)?.mode).toBe("pro")
 
         const maxTokens = body.max_output_tokens as number | undefined
-        expect(maxTokens).toBe(undefined) // match codex cli behavior
+        // The bundled Codex plugin used to clear this via its chat.params hook to
+        // match the codex cli. That plugin is cut, so the model's own limit applies.
+        expect(maxTokens).toBe(32000)
       }),
     { config: () => openAIConfig(loadFixture("openai", "gpt-5.2").model, `${state.server!.url.origin}/v1`) },
   )

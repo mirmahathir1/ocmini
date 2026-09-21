@@ -60,7 +60,6 @@ describe("RuntimeFlags", () => {
       expect(flags.experimentalWorkspaces).toBe(true)
       expect(flags.experimentalIconDiscovery).toBe(true)
       expect(flags.experimentalNativeLlm).toBe(false)
-      expect(flags.experimentalWebSockets).toBe(false)
       expect(flags.client).toBe("desktop")
     }),
   )
@@ -89,15 +88,6 @@ describe("RuntimeFlags", () => {
     }),
   )
 
-  it.effect("enables WebSockets via dedicated flag only", () =>
-    Effect.gen(function* () {
-      const explicit = yield* readFlags.pipe(Effect.provide(fromConfig({ OPENCODE_EXPERIMENTAL_WEBSOCKETS: "true" })))
-      const umbrella = yield* readFlags.pipe(Effect.provide(fromConfig({ OPENCODE_EXPERIMENTAL: "true" })))
-
-      expect(explicit.experimentalWebSockets).toBe(true)
-      expect(umbrella.experimentalWebSockets).toBe(false)
-    }),
-  )
 
   it.effect("layer accepts partial test overrides and fills defaults from Config definitions", () =>
     Effect.gen(function* () {
