@@ -10,13 +10,10 @@ import { InstallationVersion } from "@opencode-ai/core/installation/version"
 import { FormatError } from "./cli/error"
 import { ServeCommand } from "./cli/cmd/serve"
 import { StatsCommand } from "./cli/cmd/stats"
-import { ExportCommand } from "./cli/cmd/export"
 import { AttachCommand } from "./cli/cmd/attach"
 import { TuiThreadCommand } from "./cli/cmd/tui"
 import { EOL } from "os"
 import { WebCommand } from "./cli/cmd/web"
-import { SessionCommand } from "./cli/cmd/session"
-import { DbCommand } from "./cli/cmd/db"
 import { errorMessage } from "./util/error"
 import { PluginCommand } from "./cli/cmd/plug"
 import { Heap } from "./cli/heap"
@@ -79,10 +76,7 @@ const cli = yargs(args)
   .command(WebCommand)
   .command(ModelsCommand)
   .command(StatsCommand)
-  .command(ExportCommand)
-  .command(SessionCommand)
   .command(PluginCommand)
-  .command(DbCommand)
   .fail((msg, err) => {
     if (
       msg?.startsWith("Unknown argument") ||

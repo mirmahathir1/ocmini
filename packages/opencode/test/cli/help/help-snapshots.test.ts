@@ -51,10 +51,7 @@ const TOP_LEVEL = [
   "web",
   "models",
   "stats",
-  "export",
-  "session",
   "plugin",
-  "db",
 ] as const
 
 // Subcommands worth pinning. Not exhaustive — the goal is one snapshot per
@@ -66,9 +63,6 @@ const SUBCOMMANDS = [
   ["providers", "logout"],
   ["agent", "create"],
   ["agent", "list"],
-  ["session", "list"],
-  ["session", "delete"],
-  ["db", "path"],
 ] as const
 
 // Fixed wrap width so a developer's terminal doesn't affect snapshots.
