@@ -50,7 +50,6 @@ const TOP_LEVEL = [
   "serve",
   "models",
   "stats",
-  "plugin",
 ] as const
 
 // Subcommands worth pinning. Not exhaustive — the goal is one snapshot per

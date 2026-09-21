@@ -14,7 +14,6 @@ import { AttachCommand } from "./cli/cmd/attach"
 import { TuiThreadCommand } from "./cli/cmd/tui"
 import { EOL } from "os"
 import { errorMessage } from "./util/error"
-import { PluginCommand } from "./cli/cmd/plug"
 import { Heap } from "./cli/heap"
 
 const args = hideBin(process.argv)
@@ -74,7 +73,6 @@ const cli = yargs(args)
   .command(ServeCommand)
   .command(ModelsCommand)
   .command(StatsCommand)
-  .command(PluginCommand)
   .fail((msg, err) => {
     if (
       msg?.startsWith("Unknown argument") ||

@@ -262,7 +262,7 @@ export const TuiThreadCommand = cmd({
       try {
         const { Effect } = await import("effect")
         const { run } = await import("../tui/layer")
-        const { createLegacyTuiPluginHost } = await import("@/plugin/tui/runtime")
+        const pluginHost = { async start() {}, async dispose() {} }
         await Effect.runPromise(
           run({
             url: transport.url,
@@ -272,7 +272,7 @@ export const TuiThreadCommand = cmd({
               return [tui, server]
             },
             config,
-            pluginHost: createLegacyTuiPluginHost(),
+            pluginHost,
             directory: cwd,
             fetch: transport.fetch,
             headers: transport.headers,
