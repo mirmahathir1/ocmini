@@ -179,6 +179,7 @@ baseline measurement.
 | Session persistence, listing, resume | `src/storage/`, `src/session/session.ts` state | ~1.4k |
 | Checkpoints and revert | `src/snapshot/`, `src/session/revert.ts` | ~1k |
 | GitHub Actions agent and PR checkout | `src/cli/cmd/{github,github.handler,github.shared,pr}.ts` | ~1.8k |
+| The `debug` command tree, including `debug config` and `debug paths` | `src/cli/cmd/debug/` | ~605 |
 | Slash commands | `src/command/` | ~344 — also feeds the skill picker; see §4.11 |
 | Worktree and git integration beyond what shell gives | `src/worktree/`, `src/git/` | ~970 |
 | The LSP *tool* — goto-definition and friends, not diagnostics | `src/tool/lsp.ts` | ~113 |
@@ -201,6 +202,22 @@ Upstream already treats it as not-for-users. What makes it a cut rather than a k
 phase 4: the rendering it exists to exercise is scheduled for replacement by readline-grade
 input, so the harness outlives its subject. `src/cli/cmd/run/` otherwise stays — this is
 one file inside it, not the interactive mode.
+
+**On the debug tree, and what it costs.** The third added row, and the only one taken
+with a known downside rather than none. Most of `opencode debug` is internal scaffolding —
+`wait`, `scrap`, `ripgrep`, `v2`, `startup`, `skill`, `file read/search/list` exercise
+internals for someone working on opencode itself, and rule 3 takes them without argument.
+Four subcommands are not that: `config` (show resolved configuration), `paths`, `info` and
+`agent <name>` are what a *user* runs when their `opencode.json` is not taking effect.
+
+That is a live question for this fork rather than a hypothetical one. §3.1 deliberately
+keeps the base URL, key and model id in configuration so the free tier vanishing stays a
+config change, which means "why is it not using the model I set?" is a question ocmini
+invites — and `debug config` was the answer to it. The tree goes anyway, whole: the
+capability is recoverable by reading the JSON, and a half-kept command tree is a worse
+artefact than an absent one. Recorded here so the cost is visible to whoever hits it,
+rather than rediscovered. If T1–T4 ever stall on a config mystery, this is the paragraph
+to reconsider.
 
 **On the GitHub agent.** It is the one row here that was added rather than inherited.
 `opencode github` installs a workflow and runs the agent against an issue or PR comment
