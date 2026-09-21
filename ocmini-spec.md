@@ -110,6 +110,7 @@ where it is, minus its configuration surface.
 | System prompt | `src/session/system.ts`, `src/session/prompt/*.txt` | One prompt file; delete the other thirteen |
 | Read, write, edit | `src/tool/{read,write,edit}.ts` | Unchanged |
 | Formatting after edit | `src/format/`, call sites in `src/tool/{write,edit,apply_patch}.ts` | Built-in formatter table fixed; per-formatter config removed |
+| Diagnostics after edit | `src/lsp/`, call sites in `src/tool/{read,write,edit}.ts` | Built-in server table fixed; per-server config removed |
 | Glob, grep | `src/tool/{glob,grep}.ts` | Unchanged |
 | Shell | `src/tool/shell.ts` | Unchanged |
 | Web fetch, web search | `src/tool/{webfetch,websearch}.ts` | Unchanged, subject to §4.6 |
@@ -138,6 +139,26 @@ rather than re-argued. What does come out is its configuration surface: the buil
 formatter table is fixed and the per-formatter enable/disable config in `opencode.json`
 goes, in line with §6.
 
+**On diagnostics.** The same argument, and it was nearly lost. `src/lsp/` is 3.4k lines,
+1,983 of them a table of 26 language servers with detection, download and launch logic for
+each — every mechanical signal says surface, and an earlier draft of §2.2 listed it as a
+cut on exactly that reading. The reading is wrong, and the reason is the same one that
+saved formatting: what the subsystem costs in lines it repays in *when* the agent learns
+it was wrong. `lsp.diagnostics()` in `src/tool/{write,edit}.ts` appends type errors to the
+tool output of the edit that caused them, so a bad edit is corrected in the turn that made
+it. The nearest substitute — the model remembering to run `tsc --noEmit` through the kept
+shell — is not equivalent on either count: it costs a turn, and it only happens when the
+model thinks to do it. Neither is a loss that shows up as a failure; both show up as §7.2
+and §7.4 turn counts drifting upward, which is the hardest kind of regression to attribute.
+A cut that proposes `src/lsp/` is declined by this paragraph rather than re-argued. What
+comes out is the configuration surface, as with formatting: the built-in server table is
+fixed and the per-server config in `opencode.json` goes (§6).
+
+The LSP *tool* is a separate decision and stays cut. `src/tool/lsp.ts` is 113 lines behind
+`OPENCODE_EXPERIMENTAL_LSP_TOOL`, off by default, and gives the model goto-definition
+rather than diagnostics — grep already covers that ground for §7's tasks. Deleting it does
+not touch the diagnostics path this paragraph protects.
+
 ### 2.2 Cut
 
 Ordered by payoff, since that is how they should be attempted. Line counts are the
@@ -152,13 +173,13 @@ baseline measurement.
 | Plugin system and custom tools | `src/plugin/`, `packages/plugin` | ~7.7k |
 | Multi-provider support, model picker, catalogue | `src/provider/` minus one path | ~4.4k |
 | ACP integration | `src/acp/` | ~3.5k |
-| LSP and language diagnostics | `src/lsp/`, `src/tool/lsp.ts` | ~3.4k |
 | MCP client | `src/mcp/`, `packages/codemode` | ~1.8k + 11k |
 | Control plane, accounts, auth beyond one key | `src/control-plane/`, `src/account/`, `src/auth/` | ~2.2k |
 | Session persistence, listing, resume | `src/storage/`, `src/session/session.ts` state | ~1.4k |
 | Checkpoints and revert | `src/snapshot/`, `src/session/revert.ts` | ~1k |
 | Slash commands | `src/command/` | ~344 — also feeds the skill picker; see §4.11 |
 | Worktree and git integration beyond what shell gives | `src/worktree/`, `src/git/` | ~970 |
+| The LSP *tool* — goto-definition and friends, not diagnostics | `src/tool/lsp.ts` | ~113 |
 | IDE integration | `src/ide/` | ~54 |
 | Image input | attachment paths in `session/` | — |
 | Parallel tool calls | tool dispatch in `src/session/{prompt,tools}.ts` | — |
@@ -363,7 +384,7 @@ Repoint the picker at `/skill` rather than treating the menu going dark as evide
 capability broke. A skill chosen there inserts `/<name> ` as ordinary prompt text and the
 model reaches for the skill tool; the server-side expansion is gone and nothing needs it.
 
-**Cut:** `src/tool/lsp.ts` (with §2.2's LSP cut),
+**Cut:** `src/tool/lsp.ts` (the flag-gated tool only — `src/lsp/` itself is kept, §2.1),
 `src/tool/plan.ts`, `src/tool/code-mode.ts`,
 `src/tool/mcp-websearch.ts`, and `src/tool/apply_patch.ts` if edit alone carries §7 — test
 that before assuming it.
@@ -661,7 +682,7 @@ green and every cut in it committed separately (§0.2).
 | 0 | Fork, pin the baseline, run T1–T4 unmodified, capture the wire exchange | §7.0 numbers recorded; §3 rows confirmed or corrected here; capture committed |
 | 1 | Delete non-agent packages: web, console, desktop, stats, app, ui, session-ui, storybook, docs, slack, enterprise, SDKs | ~340k lines gone; `bun dev` still runs; T1 passes |
 | 2 | Collapse the provider layer to one base URL, one key, one model id from config; delete the other prompt files | Wire-shape regression clean (§7.6); reasoning continuity intact; T1 passes |
-| 3 | Delete server, share, ACP, IDE, plugin system, MCP, LSP, code-mode | ~26k lines gone; tool-output regression clean; T2 passes |
+| 3 | Delete server, share, ACP, IDE, plugin system, MCP, code-mode | ~23k lines gone; tool-output regression clean; T2 passes |
 | 4 | Replace the full-screen TUI with readline-grade input; delete `packages/tui` | A 20-minute session with no crash; abort works mid-command; T1 passes |
 | 5 | Delete commands, checkpoints, worktree, accounts, control plane; hardcode permission and truncation defaults | T2 and T4 pass; permission suite still green |
 | 6 | Session persistence and storage deleted, conversation held in memory only; tool dispatch made sequential (§2.2) | T3 passes; forced-threshold compaction test passes; **baseline re-measured** (§7.0) |
