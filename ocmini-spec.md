@@ -169,6 +169,7 @@ baseline measurement.
 | Every non-agent package: web, console, desktop, stats, storybook, docs, slack, app, ui, session-ui, enterprise | `packages/*` | ~300k |
 | SDKs and generated clients | `packages/{sdk,sdk-next,client,httpapi-codegen,protocol}` | ~40k |
 | Full-screen TUI: panes, mouse, themes, vim keybindings | `packages/tui`, `src/cli/cmd/tui/` | ~32k + part of 27k |
+| The `--demo` rendering harness: synthetic SDK events, no model calls | `src/cli/cmd/run/demo.ts` | ~1.2k |
 | Server mode, share links, HTTP API | `src/server/`, `src/share/`, `packages/server` | ~9k |
 | Plugin system and custom tools | `src/plugin/`, `packages/plugin` | ~7.7k |
 | Multi-provider support, model picker, catalogue | `src/provider/` minus one path | ~4.4k |
@@ -189,6 +190,17 @@ Everything in this table is a target, not a promise. A cut that turns out to req
 rewriting is abandoned and recorded as attempted-and-declined, with the reason, in the
 message of the next commit that lands — or in a `git commit --allow-empty` of its own if
 nothing else ships. That record is worth as much as the successful ones.
+
+**On the demo harness.** The second row added rather than inherited, and it needs saying
+because it sits inside something §2.1 keeps. `--demo` intercepts prompt submissions and
+feeds synthetic SDK events through the real reducer and footer so scrollback, permission
+UI, question UI and tool rendering can be exercised without a model call. It is a
+development harness for the run TUI, not a capability: it is hidden from `--help`, no test
+exercises it, and the only thing in the suite that mentions it asserts it stays hidden.
+Upstream already treats it as not-for-users. What makes it a cut rather than a keep is
+phase 4: the rendering it exists to exercise is scheduled for replacement by readline-grade
+input, so the harness outlives its subject. `src/cli/cmd/run/` otherwise stays — this is
+one file inside it, not the interactive mode.
 
 **On the GitHub agent.** It is the one row here that was added rather than inherited.
 `opencode github` installs a workflow and runs the agent against an issue or PR comment
