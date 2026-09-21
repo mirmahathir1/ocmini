@@ -71,6 +71,14 @@ One cut per commit is what makes this work. A commit that deletes three unrelate
 directories cannot be reverted for one of them, and its message cannot say why each was
 safe.
 
+**Commit to `master`.** Cuts land on the main branch directly — no feature branch, no pull
+request, no merge commit. There is nothing for a branch to protect here: a cut is either
+green on §7 and the suite, in which case it lands, or it is not, in which case it is not a
+cut yet. Branching only buys a second place for the record to live and a merge commit that
+interrupts the linear history §0.2 depends on being readable. `master` is the only branch
+this repository keeps; if one is created for any reason, it is merged fast-forward and
+deleted in the same breath, so `git log master` stays the whole account.
+
 ---
 
 ## 1. Goal
