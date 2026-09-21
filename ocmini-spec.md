@@ -177,6 +177,7 @@ baseline measurement.
 | Control plane, accounts, auth beyond one key | `src/control-plane/`, `src/account/`, `src/auth/` | ~2.2k |
 | Session persistence, listing, resume | `src/storage/`, `src/session/session.ts` state | ~1.4k |
 | Checkpoints and revert | `src/snapshot/`, `src/session/revert.ts` | ~1k |
+| GitHub Actions agent and PR checkout | `src/cli/cmd/{github,github.handler,github.shared,pr}.ts` | ~1.8k |
 | Slash commands | `src/command/` | ~344 — also feeds the skill picker; see §4.11 |
 | Worktree and git integration beyond what shell gives | `src/worktree/`, `src/git/` | ~970 |
 | The LSP *tool* — goto-definition and friends, not diagnostics | `src/tool/lsp.ts` | ~113 |
@@ -188,6 +189,14 @@ Everything in this table is a target, not a promise. A cut that turns out to req
 rewriting is abandoned and recorded as attempted-and-declined, with the reason, in the
 message of the next commit that lands — or in a `git commit --allow-empty` of its own if
 nothing else ships. That record is worth as much as the successful ones.
+
+**On the GitHub agent.** It is the one row here that was added rather than inherited.
+`opencode github` installs a workflow and runs the agent against an issue or PR comment
+from inside GitHub Actions; `opencode pr` checks out a PR branch. Neither is reachable from
+§1's target, which is a *terminal* agent a person drives, and no §7 task runs in CI — so
+the row is added under the same rule 3 that takes the other surfaces. It earns its place on
+size too: at ~1.8k lines it is larger than the slash commands, worktree and IDE rows put
+together, and it is a leaf, reached only through two `.command()` lines in `src/index.ts`.
 
 **Two exceptions to that**, and to rule 1. Session persistence and parallel tool calls are
 out of scope as decisions, not as opportunities. Neither may be quietly kept because
