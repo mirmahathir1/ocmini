@@ -380,14 +380,13 @@ async function runInteractiveRuntime(input: RunRuntimeInput, deps: RunRuntimeDep
       return
     }
 
-    const [agents, resources, commands] = await Promise.all([
+    // src/mcp is cut, and resources were only ever MCP resources, so the
+    // picker's resource section is permanently empty.
+    const resources: never[] = []
+    const [agents, commands] = await Promise.all([
       ctx.sdk.app
         .agents({ directory: ctx.directory })
         .then((x) => x.data ?? [])
-        .catch(() => []),
-      ctx.sdk.experimental.resource
-        .list({ directory: ctx.directory })
-        .then((x) => Object.values(x.data ?? {}))
         .catch(() => []),
       // src/command is cut, and with it the /command endpoint that used to
       // aggregate commands, MCP prompts and skills for this picker. Skills are

@@ -19,19 +19,6 @@ import { Effect } from "effect"
 import { cliIt } from "../../lib/cli-process"
 
 describe("opencode read-only commands (smoke)", () => {
-  // `mcp list` reads MCP server config and pings each one. With the empty
-  // OPENCODE_CONFIG_CONTENT={} we provide, no servers should be configured
-  // and the command should report that cleanly.
-  cliIt.live(
-    "mcp list: exits 0",
-    ({ opencode }) =>
-      Effect.gen(function* () {
-        const r = yield* opencode.spawn(["mcp", "list"])
-        opencode.expectExit(r, 0, "mcp list")
-      }),
-    60_000,
-  )
-
   // `providers list` enumerates credentials + env-resolved providers.
   // (Not config-injected ones — those don't appear here by design.) The
   // Credentials header always renders; the Environment header only renders

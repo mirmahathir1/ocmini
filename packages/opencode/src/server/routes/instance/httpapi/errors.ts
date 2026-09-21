@@ -140,15 +140,6 @@ export class PermissionNotFoundError extends Schema.TaggedErrorClass<PermissionN
   { httpApiStatus: 404 },
 ) {}
 
-export class McpServerNotFoundError extends Schema.TaggedErrorClass<McpServerNotFoundError>()(
-  "McpServerNotFoundError",
-  {
-    name: Schema.String,
-    message: Schema.String,
-  },
-  { httpApiStatus: 404 },
-) {}
-
 export class PtyNotFoundError extends Schema.TaggedErrorClass<PtyNotFoundError>()(
   "PtyNotFoundError",
   {

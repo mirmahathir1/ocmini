@@ -50,11 +50,10 @@ describe("experimental HttpApi", () => {
       Effect.gen(function* () {
         const tmp = yield* TestInstance
         const directory = tmp.directory
-        const [toolList, toolIDs, resources] = yield* Effect.all(
+        const [toolList, toolIDs] = yield* Effect.all(
           [
             request(`${ExperimentalPaths.tool}?provider=opencode&model=gpt-5`, directory),
             request(ExperimentalPaths.toolIDs, directory),
-            request(ExperimentalPaths.resource, directory),
           ],
           { concurrency: "unbounded" },
         )
@@ -70,21 +69,11 @@ describe("experimental HttpApi", () => {
 
         expect(toolIDs.status).toBe(200)
         expect(yield* json(toolIDs)).toContain("bash")
-
-        expect(resources.status).toBe(200)
-        expect(yield* json(resources)).toEqual({})
       }),
     {
       config: {
         formatter: false,
         lsp: false,
-        mcp: {
-          demo: {
-            type: "local",
-            command: ["echo", "demo"],
-            enabled: false,
-          },
-        },
       },
     },
   )

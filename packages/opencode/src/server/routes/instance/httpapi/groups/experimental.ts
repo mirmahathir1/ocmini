@@ -1,4 +1,3 @@
-import { MCP } from "@/mcp"
 
 import { Session } from "@/session/session"
 import { SessionID } from "@/session/schema"
@@ -50,7 +49,6 @@ export const ExperimentalPaths = {
   toolIDs: "/experimental/tool/ids",
   session: "/experimental/session",
   sessionBackground: "/experimental/session/:sessionID/background",
-  resource: "/experimental/resource",
 } as const
 
 export const ExperimentalApi = HttpApi.make("experimental")
@@ -113,16 +111,6 @@ export const ExperimentalApi = HttpApi.make("experimental")
             summary: "Background subagents",
             description:
               "Detach any synchronous subagents currently blocking the session and continue them in the background.",
-          }),
-        ),
-        HttpApiEndpoint.get("resource", ExperimentalPaths.resource, {
-          query: WorkspaceRoutingQuery,
-          success: described(Schema.Record(Schema.String, MCP.Resource), "MCP resources"),
-        }).annotateMerge(
-          OpenApi.annotations({
-            identifier: "experimental.resource.list",
-            summary: "Get MCP resources",
-            description: "Get all available MCP resources from connected servers. Optionally filter by name.",
           }),
         ),
       )

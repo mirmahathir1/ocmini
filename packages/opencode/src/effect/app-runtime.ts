@@ -31,8 +31,6 @@ import { SessionPrompt } from "@/session/prompt"
 import { Instruction } from "@/session/instruction"
 import { LLM } from "@/session/llm"
 import { LSP } from "@/lsp/lsp"
-import { MCP } from "@/mcp"
-import { McpAuth } from "@/mcp/auth"
 import { Truncate } from "@/tool/truncate"
 import { ToolRegistry } from "@/tool/registry"
 import { Format } from "@/format"
@@ -84,9 +82,7 @@ export const AppLayer = AppNodeBuilderV1.build(
     Instruction.node,
     LLM.node,
     LSP.node,
-    MCP.node,
-    McpAuth.node,
-    Truncate.node,
+        Truncate.node,
     ToolRegistry.node,
     Format.node,
     InstanceStore.node,

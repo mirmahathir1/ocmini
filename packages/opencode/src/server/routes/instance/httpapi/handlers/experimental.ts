@@ -3,7 +3,6 @@ import { BackgroundJob } from "@/background/job"
 import { Config } from "@/config/config"
 import { InstanceState } from "@/effect/instance-state"
 import { RuntimeFlags } from "@/effect/runtime-flags"
-import { MCP } from "@/mcp"
 import { Session } from "@/session/session"
 import type { SessionID } from "@/session/schema"
 import { ToolJsonSchema } from "@/tool/json-schema"
@@ -18,7 +17,6 @@ export const experimentalHandlers = HttpApiBuilder.group(InstanceHttpApi, "exper
   Effect.gen(function* () {
     const agents = yield* Agent.Service
     const config = yield* Config.Service
-    const mcp = yield* MCP.Service
     const registry = yield* ToolRegistry.Service
     const sessions = yield* Session.Service
     const background = yield* BackgroundJob.Service
@@ -81,16 +79,11 @@ export const experimentalHandlers = HttpApiBuilder.group(InstanceHttpApi, "exper
       return promoted.some((job) => job !== undefined)
     })
 
-    const resource = Effect.fn("ExperimentalHttpApi.resource")(function* () {
-      return yield* mcp.resources()
-    })
-
     return handlers
       .handle("capabilities", capabilities)
       .handle("tool", tool)
       .handle("toolIDs", toolIDs)
       .handle("session", session)
       .handle("sessionBackground", sessionBackground)
-      .handle("resource", resource)
   }),
 )

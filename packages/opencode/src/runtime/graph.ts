@@ -15,8 +15,6 @@ import { EventV2Bridge } from "@/event-v2-bridge"
 import { Format } from "@/format"
 import { Git } from "@/git"
 import { LSP } from "@/lsp/lsp"
-import { MCP } from "@/mcp"
-import { McpAuth } from "@/mcp/auth"
 import { Permission } from "@/permission"
 import { Plugin } from "@/plugin"
 import { InstanceStore } from "@/project/instance-store"
@@ -92,8 +90,6 @@ export const app = LayerNode.group([
   Instruction.node,
   LLM.node,
   LSP.node,
-  MCP.node,
-  McpAuth.node,
   Truncate.node,
   ToolRegistry.node,
   Format.node,

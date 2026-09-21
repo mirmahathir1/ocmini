@@ -43,7 +43,6 @@ function normalize(text: string): string {
 // `completion` is intentionally excluded — it's a yargs built-in that emits
 // top-level help on `--help` and exits 1; not a real opencode command.
 const TOP_LEVEL = [
-  "mcp",
   "attach",
   "run",
   "debug",
@@ -65,10 +64,6 @@ const TOP_LEVEL = [
 // distinct argv shape, not every leaf. Add new entries when a subcommand
 // gains user-visible flags that we want to lock in.
 const SUBCOMMANDS = [
-  ["mcp", "list"],
-  ["mcp", "add"],
-  ["mcp", "auth"],
-  ["mcp", "logout"],
   ["providers", "list"],
   ["providers", "login"],
   ["providers", "logout"],

@@ -3,7 +3,6 @@ import { ModelV2 } from "@opencode-ai/core/model"
 import { ProviderV2 } from "@opencode-ai/core/provider"
 import { SessionV1 } from "@opencode-ai/core/v1/session"
 import { Agent } from "@/agent/agent"
-import { MCP } from "@/mcp"
 import { Permission } from "@/permission"
 import { Provider } from "@/provider/provider"
 import { Session } from "@/session/session"
@@ -35,13 +34,6 @@ const model = {
   api: { id: "test-model" },
 } as Provider.Model
 
-function fakeMcp() {
-  return MCP.Service.of({
-    tools: () => Effect.succeed({}),
-    clients: () => Effect.succeed({}),
-  } as Partial<MCP.Interface> as MCP.Interface)
-}
-
 const fakePlugin = Plugin.Service.of({
   init: () => Effect.void,
   list: () => Effect.succeed([]),
@@ -64,7 +56,6 @@ const fakeTruncate = Truncate.Service.of({
 const layer = Layer.mergeAll(
   Layer.succeed(Plugin.Service, fakePlugin),
   Layer.succeed(Permission.Service, fakePermission),
-  Layer.succeed(MCP.Service, fakeMcp()),
   Layer.succeed(Truncate.Service, fakeTruncate),
   RuntimeFlags.layer(),
   Layer.succeed(
