@@ -123,7 +123,7 @@ where it is, minus its configuration surface.
 | Project rules (`AGENTS.md`) | `src/session/instruction.ts` | Unchanged |
 | Token accounting | token bookkeeping in `src/session/prompt.ts` | Denominated in tokens, not dollars (§3) |
 | Asking the user | `src/tool/question.ts`, `src/question/` | Unchanged — blocking (§7.7) |
-| Interactive session | `src/cli/cmd/tui/` | Readline-grade input; see §2.2 on the TUI |
+| Interactive session | `src/cli/cmd/tui.ts`, `src/cli/cmd/run/`, `packages/tui` | Unchanged — see the note below |
 | One-shot run | `src/cli/cmd/run.ts` | Unchanged — the acceptance harness depends on it |
 
 **On formatting.** It is the one row here that looks like a cut and is not. `src/format/`
@@ -159,6 +159,29 @@ The LSP *tool* is a separate decision and stays cut. `src/tool/lsp.ts` is 113 li
 rather than diagnostics — grep already covers that ground for §7's tasks. Deleting it does
 not touch the diagnostics path this paragraph protects.
 
+**On the full-screen TUI.** It was the largest row in §2.2 — `packages/tui` at ~32k lines,
+the single biggest payoff left once the non-agent packages and the SDKs were gone — and it
+is now a keep. The reason is rule 1, not taste. `packages/tui` is not a leaf: the
+interactive path this project needs, `src/cli/cmd/run/`, imports a dozen of its entry
+points — `config` and `config/keybind`, `keymap`, `editor`, `prompt/display`,
+`parsers-config`, `ui/spinner`, `component/spinner`, `context/theme`. Deleting the package
+means reimplementing keybinding resolution, editor handoff, prompt rendering and the
+footer against a new input layer, which is the rewrite wearing a cut's clothing that rule 1
+names. The alternative — delete `routes/`, `component/`, `feature-plugins/` and `theme/`
+and keep the rest — is a package carved in half, and what survives is no longer the
+upstream implementation §7.6 can regress against.
+
+The plain reading of §1 points the same way: "narrow, not weak", and "anything that could
+be done by opening opencode and typing a request must still be achievable with `ocmini`".
+Panes, mouse, themes and vim keybindings are configuration surface, and §6 takes that
+surface wherever it appears. The renderer underneath stays. A future cut that proposes
+`packages/tui` is declined by this paragraph rather than re-argued; a cut that proposes its
+*config* is in scope and welcome.
+
+This costs the size gate. §7.5 is amended to match — see the workspace-package and line
+count conditions there — because a target met by a rewrite is not a target this method can
+meet.
+
 ### 2.2 Cut
 
 Ordered by payoff, since that is how they should be attempted. Line counts are the
@@ -168,7 +191,6 @@ baseline measurement.
 |---|---|---|
 | Every non-agent package: web, console, desktop, stats, storybook, docs, slack, app, ui, session-ui, enterprise | `packages/*` | ~300k |
 | SDKs and generated clients | `packages/{sdk,sdk-next,client,httpapi-codegen,protocol}` | ~40k |
-| Full-screen TUI: panes, mouse, themes, vim keybindings | `packages/tui`, `src/cli/cmd/tui/` | ~32k + part of 27k |
 | The `--demo` rendering harness: synthetic SDK events, no model calls | `src/cli/cmd/run/demo.ts` | ~1.2k |
 | Server mode, share links, HTTP API | `src/server/`, `src/share/`, `packages/server` | ~9k |
 | Plugin system and custom tools | `src/plugin/`, `packages/plugin` | ~7.7k |
@@ -198,10 +220,12 @@ feeds synthetic SDK events through the real reducer and footer so scrollback, pe
 UI, question UI and tool rendering can be exercised without a model call. It is a
 development harness for the run TUI, not a capability: it is hidden from `--help`, no test
 exercises it, and the only thing in the suite that mentions it asserts it stays hidden.
-Upstream already treats it as not-for-users. What makes it a cut rather than a keep is
-phase 4: the rendering it exists to exercise is scheduled for replacement by readline-grade
-input, so the harness outlives its subject. `src/cli/cmd/run/` otherwise stays — this is
-one file inside it, not the interactive mode.
+Upstream already treats it as not-for-users, and that is the whole case: a harness for
+developing opencode's renderer is not a capability of ocmini's, whatever happens to the
+renderer. (An earlier draft rested this on the full-screen TUI being scheduled for
+replacement. That is no longer true — the TUI is kept, see §2.1 — and the cut stands
+without it.) `src/cli/cmd/run/` otherwise stays — this is one file inside it, not the
+interactive mode.
 
 **On the debug tree, and what it costs.** The third added row, and the only one taken
 with a known downside rather than none. Most of `opencode debug` is internal scaffolding —
@@ -633,12 +657,21 @@ is the part that catches an agent taking the easy way out.
 
 ### 7.5 Standing conditions
 
-- **The strip is real and measured.** One workspace package. **≤ 15,000 lines of
-  TypeScript** across the whole repository, down from ~780,000 — and that figure is a
-  target to be revised once phase 1 measures the irreducible core, not a number to be met
-  by cutting into `src/tool/edit.ts` or `src/session/compaction.ts`. If the true floor is
-  higher, amend this line and say what the floor is made of. If a cut would meet the
-  number by removing something §7's tasks need, the number was wrong, not the code.
+- **The strip is real and measured.** Two workspace packages: `packages/opencode` and
+  `packages/tui`. **≤ 50,000 lines of TypeScript** across the whole repository, down from
+  ~780,000 — and that figure is a target to be revised once phase 1 measures the
+  irreducible core, not a number to be met by cutting into `src/tool/edit.ts` or
+  `src/session/compaction.ts`. If the true floor is higher, amend this line and say what
+  the floor is made of. If a cut would meet the number by removing something §7's tasks
+  need, the number was wrong, not the code.
+
+  This line has already been amended once, and the amendment is what the rule above is
+  for. The original read "one workspace package, ≤ 15,000 lines". Keeping `packages/tui`
+  (§2.1) puts ~32k lines and a second package permanently inside the tree, so a 15,000
+  line repository was no longer reachable by deletion — only by the rewrite §0 rule 1
+  forbids. The floor is now made of: the agent spine in `session/` and `tool/` (~11.5k),
+  the interactive path in `src/cli/` (~20k), `packages/tui` (~32k), and `src/lsp/` and
+  `src/format/` kept by §2.1 (~3.9k).
 - **The commit history accounts for the difference.** Every deleted directory has a
   commit of its own (§0.2), including the ones attempted and reverted.
 - **The surviving upstream tests pass.** `bun test` green, with the deleted suites removed
@@ -721,7 +754,7 @@ green and every cut in it committed separately (§0.2).
 | 1 | Delete non-agent packages: web, console, desktop, stats, app, ui, session-ui, storybook, docs, slack, enterprise, SDKs | ~340k lines gone; `bun dev` still runs; T1 passes |
 | 2 | Collapse the provider layer to one base URL, one key, one model id from config; delete the other prompt files | Wire-shape regression clean (§7.6); reasoning continuity intact; T1 passes |
 | 3 | Delete server, share, ACP, IDE, plugin system, MCP, code-mode | ~23k lines gone; tool-output regression clean; T2 passes |
-| 4 | Replace the full-screen TUI with readline-grade input; delete `packages/tui` | A 20-minute session with no crash; abort works mid-command; T1 passes |
+| 4 | Strip the TUI's configuration surface — themes, keybinding config, pane layout options — keeping `packages/tui` itself (§2.1) | A 20-minute session with no crash; abort works mid-command; T1 passes |
 | 5 | Delete commands, checkpoints, worktree, accounts, control plane; hardcode permission and truncation defaults | T2 and T4 pass; permission suite still green |
 | 6 | Session persistence and storage deleted, conversation held in memory only; tool dispatch made sequential (§2.2) | T3 passes; forced-threshold compaction test passes; **baseline re-measured** (§7.0) |
 | 7 | Sweep: dead flags, dead config, dead deps, dead tests, README | **§7.5 size gate met**; `--help` accurate; three consecutive T1 runs pass |
