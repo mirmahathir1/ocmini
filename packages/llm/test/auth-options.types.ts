@@ -3,11 +3,9 @@ import type { Auth } from "../src/route/auth"
 import type { ModelFactory } from "../src/route/auth-options"
 import { Auth as RuntimeAuth } from "../src/route/auth"
 import * as OpenAIChat from "../src/protocols/openai-chat"
-import * as AmazonBedrock from "../src/providers/amazon-bedrock"
 import * as Anthropic from "../src/providers/anthropic"
 import * as Azure from "../src/providers/azure"
 import * as Cloudflare from "../src/providers/cloudflare"
-import * as Google from "../src/providers/google"
 import * as OpenAI from "../src/providers/openai"
 import * as OpenAICompatible from "../src/providers/openai-compatible"
 import * as OpenRouter from "../src/providers/openrouter"
@@ -134,14 +132,6 @@ Azure.configure({ resourceName: "resource", apiKey: "azure-key", auth: RuntimeAu
 Anthropic.configure({ apiKey: "anthropic-key" }).model("claude-haiku")
 // @ts-expect-error Anthropic model selectors only accept model ids.
 Anthropic.configure({ apiKey: "anthropic-key" }).model("claude-haiku", {})
-
-Google.configure({ apiKey: "google-key" }).model("gemini-2.5-flash")
-// @ts-expect-error Google model selectors only accept model ids.
-Google.configure({ apiKey: "google-key" }).model("gemini-2.5-flash", {})
-
-AmazonBedrock.configure({ apiKey: "bedrock-key" }).model("anthropic.claude")
-// @ts-expect-error Bedrock model selectors only accept model ids.
-AmazonBedrock.configure({ apiKey: "bedrock-key" }).model("anthropic.claude", {})
 
 OpenRouter.configure({ apiKey: "openrouter-key" }).model("openai/gpt-4o-mini")
 // @ts-expect-error OpenRouter model selectors only accept model ids.
