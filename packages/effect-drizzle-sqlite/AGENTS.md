@@ -16,4 +16,3 @@ Useful entry points:
 - `src/effect-sqlite/session.ts`: adapts generic Effect `SqlClient` execution and transactions to Drizzle SQLite sessions.
 - `src/sqlite-core/effect/*`: Effect-yieldable SQLite query builders.
 - `src/internal/drizzle-utils.ts`: local typed shims for Drizzle runtime internals that RC2 does not expose in declarations.
-- `examples/basic.ts`: minimal usage example with Bun SQLite.
