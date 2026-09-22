@@ -11,64 +11,25 @@
 // If a future change should make one of these commands intentionally fail in
 // an empty env, update the assertion + add a note explaining the new contract.
 //
-// Speed: each test pays ~1.5s for bun startup. 7 tests serialize within this
-// file. See script/prebuild-test-cli.ts for an opt-in pre-built binary that
+// Speed: each test pays ~1.5s for bun startup. See script/prebuild-test-cli.ts for an opt-in pre-built binary that
 // cuts per-spawn cost when this suite gets bigger.
 import { describe, expect } from "bun:test"
 import { Effect } from "effect"
 import { cliIt } from "../../lib/cli-process"
 
 describe("opencode read-only commands (smoke)", () => {
-  // `providers list` enumerates credentials + env-resolved providers.
-  // (Not config-injected ones — those don't appear here by design.) The
-  // Credentials header always renders; the Environment header only renders
-  // when at least one provider env var is set, which the isolation harness
-  // deliberately doesn't guarantee. Assert the always-present marker so the
-  // test passes on a clean CI runner without env-var leakage.
+  // `generate` boots the server and emits the OpenAPI document. It is the
+  // only surviving no-inputs, no-side-effects command, so it now carries the
+  // whole tier-A signal: config load, DB init and server boot all run before
+  // a byte is printed. The providers/models/agent/stats smokes that used to
+  // sit here went with their commands.
   cliIt.live(
-    "providers list: exits 0 and prints the credentials section",
+    "generate: exits 0 and emits the OpenAPI document",
     ({ opencode }) =>
       Effect.gen(function* () {
-        const r = yield* opencode.spawn(["providers", "list"])
-        opencode.expectExit(r, 0, "providers list")
-        expect(r.stdout).toContain("Credentials")
-      }),
-    60_000,
-  )
-
-  // `models` lists models from configured providers. Our test/test-model
-  // should appear because it's wired into the test provider config.
-  cliIt.live(
-    "models: exits 0 and lists the test model",
-    ({ opencode }) =>
-      Effect.gen(function* () {
-        const r = yield* opencode.spawn(["models"])
-        opencode.expectExit(r, 0, "models")
-        expect(r.stdout).toContain("test/test-model")
-      }),
-    60_000,
-  )
-
-  // `agent list` walks the agent config. Empty config means no agents
-  // configured; the command should still exit 0 with a "no agents" line or
-  // similar. We don't pin the message — just exit cleanly.
-  cliIt.live(
-    "agent list: exits 0",
-    ({ opencode }) =>
-      Effect.gen(function* () {
-        const r = yield* opencode.spawn(["agent", "list"])
-        opencode.expectExit(r, 0, "agent list")
-      }),
-    60_000,
-  )
-
-  // `stats` aggregates token usage from the session DB. Empty DB → all zeros.
-  cliIt.live(
-    "stats: exits 0",
-    ({ opencode }) =>
-      Effect.gen(function* () {
-        const r = yield* opencode.spawn(["stats"])
-        opencode.expectExit(r, 0, "stats")
+        const r = yield* opencode.spawn(["generate"])
+        opencode.expectExit(r, 0, "generate")
+        expect(r.stdout).toContain('"openapi"')
       }),
     60_000,
   )

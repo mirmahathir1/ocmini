@@ -42,26 +42,12 @@ function normalize(text: string): string {
 // keep it in that order so the snapshot file reads as a table of contents.
 // `completion` is intentionally excluded — it's a yargs built-in that emits
 // top-level help on `--help` and exits 1; not a real opencode command.
-const TOP_LEVEL = [
-  "attach",
-  "run",
-  "providers", // aliased to `auth`
-  "agent",
-  "serve",
-  "models",
-  "stats",
-] as const
+const TOP_LEVEL = ["run", "serve"] as const
 
 // Subcommands worth pinning. Not exhaustive — the goal is one snapshot per
 // distinct argv shape, not every leaf. Add new entries when a subcommand
 // gains user-visible flags that we want to lock in.
-const SUBCOMMANDS = [
-  ["providers", "list"],
-  ["providers", "login"],
-  ["providers", "logout"],
-  ["agent", "create"],
-  ["agent", "list"],
-] as const
+const SUBCOMMANDS: ReadonlyArray<readonly string[]> = []
 
 // Fixed wrap width so a developer's terminal doesn't affect snapshots.
 // yargs honors COLUMNS; CI runners typically default to 80 which produces

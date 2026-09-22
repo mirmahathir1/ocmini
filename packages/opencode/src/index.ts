@@ -2,15 +2,10 @@ import yargs from "yargs"
 import { hideBin } from "yargs/helpers"
 import { RunCommand } from "./cli/cmd/run"
 import { GenerateCommand } from "./cli/cmd/generate"
-import { ProvidersCommand } from "./cli/cmd/providers"
-import { AgentCommand } from "./cli/cmd/agent"
-import { ModelsCommand } from "./cli/cmd/models"
 import { UI } from "./cli/ui"
 import { InstallationVersion } from "@opencode-ai/core/installation/version"
 import { FormatError } from "./cli/error"
 import { ServeCommand } from "./cli/cmd/serve"
-import { StatsCommand } from "./cli/cmd/stats"
-import { AttachCommand } from "./cli/cmd/attach"
 import { TuiThreadCommand } from "./cli/cmd/tui"
 import { EOL } from "os"
 import { errorMessage } from "./util/error"
@@ -65,14 +60,9 @@ const cli = yargs(args)
   .usage("")
   .completion("completion", "generate shell completion script")
   .command(TuiThreadCommand)
-  .command(AttachCommand)
   .command(RunCommand)
   .command(GenerateCommand)
-  .command(ProvidersCommand)
-  .command(AgentCommand)
   .command(ServeCommand)
-  .command(ModelsCommand)
-  .command(StatsCommand)
   .fail((msg, err) => {
     if (
       msg?.startsWith("Unknown argument") ||
