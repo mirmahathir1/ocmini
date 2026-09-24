@@ -404,6 +404,11 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
       Slot: pluginRuntime.Slot,
     }),
   )
+  // The slot registry is the TUI's own render plumbing, not part of plugin loading: every
+  // built-in element (logo, prompt, footers) is a Slot child that renders only once a real
+  // registry is installed. Set it up here so it stands whether or not a plugin host loads.
+  const slots = pluginRuntime.setupSlots(api)
+  onCleanup(() => slots.dispose())
   const [ready, setReady] = createSignal(false)
   props.pluginHost
     .start({
