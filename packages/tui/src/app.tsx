@@ -577,8 +577,6 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
         title: "Switch session",
         category: "Session",
         suggested: sync.data.session.length > 0,
-        slashName: "sessions",
-        slashAliases: ["resume", "continue"],
         run: () => {
           dialog.replace(() => <DialogSessionList />)
         },
@@ -588,8 +586,6 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
         title: "New session",
         suggested: route.data.type === "session",
         category: "Session",
-        slashName: "new",
-        slashAliases: ["clear"],
         run: () => {
           route.navigate({
             type: "home",
@@ -617,7 +613,6 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
         title: "Manage workspaces",
         category: "Workspace",
         hidden: !Flag.OPENCODE_EXPERIMENTAL_WORKSPACES,
-        slashName: "workspaces",
         run: () => {
           dialog.replace(() => <DialogWorkspaceList />)
         },
@@ -636,9 +631,7 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
         title: "Switch model",
         suggested: true,
         category: "Agent",
-        slashName: "models",
         // Bias /mo toward /models over /move without changing global fuzzy scoring.
-        slashAliases: ["mo"],
         run: () => {
           dialog.replace(() => <DialogModel />)
         },
@@ -683,7 +676,6 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
         name: "agent.list",
         title: "Switch agent",
         category: "Agent",
-        slashName: "agents",
         run: () => {
           dialog.replace(() => <DialogAgent />)
         },
@@ -692,7 +684,6 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
         name: "mcp.list",
         title: "Toggle MCPs",
         category: "Agent",
-        slashName: "mcps",
         run: () => {
           dialog.replace(() => <DialogMcp />)
         },
@@ -719,7 +710,6 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
         title: "Switch model variant",
         category: "Agent",
         hidden: local.model.variant.list().length === 0,
-        slashName: "variants",
         run: () => {
           if (local.model.variant.list().length === 0) {
             return toast.show({
@@ -744,7 +734,6 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
         name: "provider.connect",
         title: "Connect provider",
         suggested: !connected(),
-        slashName: "connect",
         run: () => {
           dialog.replace(() => <DialogProviderList />)
         },
@@ -756,8 +745,6 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
               name: "console.org.switch",
               title: "Switch org",
               suggested: Boolean(sync.data.console_state.activeOrgName),
-              slashName: "org",
-              slashAliases: ["orgs", "switch-org"],
               run: () => {
                 dialog.replace(() => <DialogConsoleOrg />)
               },
@@ -768,7 +755,6 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
       {
         name: "opencode.status",
         title: "View status",
-        slashName: "status",
         run: () => {
           dialog.replace(() => <DialogStatus />)
         },
@@ -777,7 +763,6 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
       {
         name: "opencode.debug",
         title: "View debug info",
-        slashName: "debug",
         run: () => {
           dialog.replace(() => <DialogDebug />)
         },
@@ -786,7 +771,6 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
       {
         name: "theme.switch",
         title: "Switch theme",
-        slashName: "themes",
         run: () => {
           dialog.replace(() => <DialogThemeList />)
         },
@@ -814,7 +798,6 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
       {
         name: "help.show",
         title: "Help",
-        slashName: "help",
         run: () => {
           dialog.replace(() => <DialogHelp />)
         },
@@ -832,8 +815,6 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
       {
         name: "app.exit",
         title: "Exit the app",
-        slashName: "exit",
-        slashAliases: ["quit", "q"],
         run: () => exit(),
         category: "System",
       },

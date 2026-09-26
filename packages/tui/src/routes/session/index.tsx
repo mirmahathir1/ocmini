@@ -469,9 +469,6 @@ export function Session() {
       suggested: route.type === "session",
       category: "Session",
       enabled: sync.data.config.share !== "disabled",
-      slash: {
-        name: "share",
-      },
       run: async () => {
         const copy = (url: string) =>
           clipboard
@@ -507,9 +504,6 @@ export function Session() {
       title: "Rename session",
       value: "session.rename",
       category: "Session",
-      slash: {
-        name: "rename",
-      },
       run: () => {
         dialog.replace(() => <DialogSessionRename session={route.sessionID} />)
       },
@@ -518,9 +512,6 @@ export function Session() {
       title: "Jump to message",
       value: "session.timeline",
       category: "Session",
-      slash: {
-        name: "timeline",
-      },
       run: () => {
         dialog.replace(() => (
           <DialogTimeline
@@ -540,9 +531,6 @@ export function Session() {
       title: "Fork session",
       value: "session.fork",
       category: "Session",
-      slash: {
-        name: "fork",
-      },
       run: () => {
         dialog.replace(() => (
           <DialogForkFromTimeline
@@ -562,10 +550,6 @@ export function Session() {
       title: "Compact session",
       value: "session.compact",
       category: "Session",
-      slash: {
-        name: "compact",
-        aliases: ["summarize"],
-      },
       run: () => {
         const selectedModel = local.model.current()
         if (!selectedModel) {
@@ -589,9 +573,6 @@ export function Session() {
       value: "session.unshare",
       category: "Session",
       enabled: !!session()?.share?.url,
-      slash: {
-        name: "unshare",
-      },
       run: async () => {
         await sdk.client.session
           .unshare({
@@ -611,9 +592,6 @@ export function Session() {
       title: "Undo previous message",
       value: "session.undo",
       category: "Session",
-      slash: {
-        name: "undo",
-      },
       run: async () => {
         const status = sync.data.session_status?.[route.sessionID]
         if (status?.type !== "idle") await sdk.client.session.abort({ sessionID: route.sessionID }).catch(() => {})
@@ -648,9 +626,6 @@ export function Session() {
       value: "session.redo",
       category: "Session",
       enabled: !!session()?.revert?.messageID,
-      slash: {
-        name: "redo",
-      },
       run: () => {
         dialog.clear()
         const messageID = session()?.revert?.messageID
@@ -695,10 +670,6 @@ export function Session() {
       title: showTimestamps() ? "Hide timestamps" : "Show timestamps",
       value: "session.toggle.timestamps",
       category: "Session",
-      slash: {
-        name: "timestamps",
-        aliases: ["toggle-timestamps"],
-      },
       run: () => {
         setTimestamps((prev) => (prev === "show" ? "hide" : "show"))
         dialog.clear()
@@ -712,10 +683,6 @@ export function Session() {
       })(),
       value: "session.toggle.thinking",
       category: "Session",
-      slash: {
-        name: "thinking",
-        aliases: ["toggle-thinking"],
-      },
       run: () => {
         thinking.set(nextThinkingMode(thinkingMode()))
         dialog.clear()
@@ -917,9 +884,6 @@ export function Session() {
       title: "Copy session transcript",
       value: "session.copy",
       category: "Session",
-      slash: {
-        name: "copy",
-      },
       run: async () => {
         try {
           const sessionData = session()
@@ -947,9 +911,6 @@ export function Session() {
       title: "Export session transcript",
       value: "session.export",
       category: "Session",
-      slash: {
-        name: "export",
-      },
       run: async () => {
         try {
           const sessionData = session()
@@ -1088,8 +1049,6 @@ export function Session() {
       namespace: "palette",
       name: command.value,
       desc: "description" in command ? command.description : undefined,
-      slashName: "slash" in command ? command.slash?.name : undefined,
-      slashAliases: "slash" in command ? command.slash?.aliases : undefined,
       ...command,
     })),
   )

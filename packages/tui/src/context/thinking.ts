@@ -20,7 +20,7 @@ export function isThinkingMode(value: unknown): value is ThinkingMode {
   return typeof value === "string" && (MODES as readonly string[]).includes(value)
 }
 
-// Cycle order matches the slash command: show → hide → show.
+// Cycle order: show → hide → show.
 export function nextThinkingMode(current: ThinkingMode): ThinkingMode {
   const idx = MODES.indexOf(current)
   return MODES[(idx + 1) % MODES.length] ?? "show"

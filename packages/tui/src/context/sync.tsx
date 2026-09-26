@@ -6,7 +6,6 @@ import type {
   Part,
   Config,
   Todo,
-  Command,
   PermissionRequest,
   QuestionRequest,
   LspStatus,
@@ -78,7 +77,6 @@ export const {
       }
       provider_auth: Record<string, ProviderAuthMethod[]>
       agent: Agent[]
-      command: Command[]
       permission: {
         [sessionID: string]: PermissionRequest[]
       }
@@ -127,7 +125,6 @@ export const {
       agent: [],
       permission: {},
       question: {},
-      command: [],
       provider: [],
       provider_default: {},
       session: [],
@@ -520,7 +517,6 @@ export const {
           void Promise.all([
             ...(args.continue ? [] : [sessionListPromise.then((sessions) => setStore("session", reconcile(sessions)))]),
             consoleStatePromise.then((consoleState) => setStore("console_state", reconcile(consoleState))),
-            sdk.client.command.list({ workspace }).then((x) => setStore("command", reconcile(x.data ?? []))),
             sdk.client.lsp.status({ workspace }).then((x) => setStore("lsp", reconcile(x.data ?? []))),
             sdk.client.mcp.status({ workspace }).then((x) => setStore("mcp", reconcile(x.data ?? {}))),
             sdk.client.experimental.resource

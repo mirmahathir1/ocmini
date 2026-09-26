@@ -20,7 +20,7 @@ import { useTerminalDimensions } from "@opentui/solid"
 import { Locale } from "../../util/locale"
 import type { PromptInfo } from "../../prompt/history"
 import { useFrecency } from "../../prompt/frecency"
-import { useBindings, useCommandSlashes, useOpencodeModeStack } from "../../keymap"
+import { useBindings, useOpencodeModeStack } from "../../keymap"
 import { displayCharAt, mentionTriggerIndex } from "../../prompt/display"
 import type { FileSystemEntry } from "@opencode-ai/sdk/v2"
 
@@ -58,7 +58,7 @@ function extractLineRange(input: string) {
 
 export type AutocompleteRef = {
   onInput: (value: string) => void
-  visible: false | "@" | "/"
+  visible: false | "@"
 }
 
 export type AutocompleteOption = {
@@ -89,7 +89,6 @@ export function Autocomplete(props: {
   const sync = useSync()
   const data = useData()
   const project = useProject()
-  const slashes = useCommandSlashes()
   const modeStack = useOpencodeModeStack()
   const { theme } = useTheme()
   const dimensions = useTerminalDimensions()
@@ -280,7 +279,7 @@ export function Autocomplete(props: {
   const references = createMemo(() => data.location.reference.list() ?? [])
 
   const referenceMatch = createMemo(() => {
-    if (!store.visible || store.visible === "/") return
+    if (!store.visible) return
     const { baseQuery } = extractLineRange(search())
     const slash = baseQuery.indexOf("/")
     const alias = slash === -1 ? baseQuery : baseQuery.slice(0, slash)
@@ -316,7 +315,7 @@ export function Autocomplete(props: {
   const [files] = createResource(
     () => ({ query: search(), location: location() }),
     async (input) => {
-      if (!store.visible || store.visible === "/") return []
+      if (!store.visible) return []
       if (referenceMatch()) return []
       const { lineRange, baseQuery } = extractLineRange(input.query ?? "")
 
@@ -364,7 +363,7 @@ export function Autocomplete(props: {
   )
 
   const mcpResources = createMemo(() => {
-    if (!store.visible || store.visible === "/") return []
+    if (!store.visible) return []
 
     const options: AutocompleteOption[] = []
     const width = props.anchor().width - 4
@@ -444,41 +443,11 @@ export function Autocomplete(props: {
       ),
   )
 
-  const commands = createMemo((): AutocompleteOption[] => {
-    const results: AutocompleteOption[] = [...slashes()]
-
-    for (const serverCommand of sync.data.command) {
-      if (serverCommand.source === "skill") continue
-      const label = serverCommand.source === "mcp" ? ":mcp" : ""
-      results.push({
-        display: "/" + serverCommand.name + label,
-        description: serverCommand.description,
-        onSelect: () => {
-          const newText = "/" + serverCommand.name + " "
-          const cursor = props.input().logicalCursor
-          props.input().deleteRange(0, 0, cursor.row, cursor.col)
-          props.input().insertText(newText)
-          props.input().cursorOffset = Bun.stringWidth(newText)
-        },
-      })
-    }
-
-    results.sort((a, b) => a.display.localeCompare(b.display))
-
-    const max = firstBy(results, [(x) => x.display.length, "desc"])?.display.length
-    if (!max) return results
-    return results.map((item) => ({
-      ...item,
-      display: item.display.padEnd(max + 2),
-    }))
-  })
-
   const options = createMemo((prev: AutocompleteOption[] | undefined) => {
     const filesValue = files()
     const referenceMatchValue = referenceMatch()
     const agentsValue = agents()
     const referenceAliasesValue = referenceAliases()
-    const commandsValue = commands()
     const searchValue = search()
 
     if (store.visible === "@" && referenceMatchValue) {
@@ -487,9 +456,8 @@ export function Autocomplete(props: {
 
     // Files come from fff already fuzzy ranked and filtered
     // it shouldn't be additionally sorted by fuzzysort as it will loose the results
-    const fileOptions: AutocompleteOption[] = store.visible === "@" ? filesValue || [] : []
-    const nonFileOptions: AutocompleteOption[] =
-      store.visible === "@" ? [...referenceAliasesValue, ...agentsValue, ...mcpResources()] : [...commandsValue]
+    const fileOptions: AutocompleteOption[] = filesValue || []
+    const nonFileOptions: AutocompleteOption[] = [...referenceAliasesValue, ...agentsValue, ...mcpResources()]
 
     if (!searchValue) {
       return [...nonFileOptions, ...fileOptions]
@@ -503,11 +471,9 @@ export function Autocomplete(props: {
       .go(removeLineRange(searchValue), nonFileOptions, {
         keys: [
           (obj) => removeLineRange((obj.value ?? obj.display).trimEnd()),
-          // Match description for slash commands only; for "@" it surfaced unrelated items.
-          ...(store.visible === "/" ? ["description" as const] : []),
           (obj) => obj.aliases?.join(" ") ?? "",
         ],
-        threshold: store.visible === "@" ? 0.5 : 0,
+        threshold: 0.5,
         limit: 10,
         scoreFn: (objResults) => {
           const displayResult = objResults[0]
@@ -640,7 +606,7 @@ export function Autocomplete(props: {
     ]),
   }))
 
-  function show(mode: "@" | "/") {
+  function show(mode: "@") {
     setStore({
       visible: mode,
       index: props.input().cursorOffset,
@@ -648,15 +614,6 @@ export function Autocomplete(props: {
   }
 
   function hide() {
-    const text = props.input().plainText
-    if (store.visible === "/" && !text.endsWith(" ") && text.startsWith("/")) {
-      const cursor = props.input().logicalCursor
-      props.input().deleteRange(0, 0, cursor.row, cursor.col)
-      // Sync the prompt store immediately since onContentChange is async
-      props.setPrompt((draft) => {
-        draft.input = props.input().plainText
-      })
-    }
     setStore("visible", false)
   }
 
@@ -679,9 +636,7 @@ export function Autocomplete(props: {
             // Typed text before the trigger
             props.input().cursorOffset <= store.index ||
             // There is a space between the trigger and the cursor
-            props.input().getTextRange(store.index, props.input().cursorOffset).match(/\s/) ||
-            // "/<command>" is not the sole content
-            (store.visible === "/" && value.match(/^\S+\s+\S+\s*$/))
+            props.input().getTextRange(store.index, props.input().cursorOffset).match(/\s/)
           ) {
             hide()
           }
@@ -691,13 +646,6 @@ export function Autocomplete(props: {
         // Check if autocomplete should reopen (e.g., after backspace deleted a space)
         const offset = props.input().cursorOffset
         if (offset === 0) return
-
-        // Check for "/" at position 0 - reopen slash commands
-        if (value.startsWith("/") && !value.slice(0, offset).match(/\s/)) {
-          show("/")
-          setStore("index", 0)
-          return
-        }
 
         // Check for "@" trigger - find the nearest "@" before cursor with no whitespace between
         const idx = mentionTriggerIndex(value, offset)

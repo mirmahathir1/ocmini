@@ -424,7 +424,6 @@ export function Prompt(props: PromptProps) {
         title: "Open editor",
         category: "Session",
         name: "prompt.editor",
-        slashName: "editor",
         run: async () => {
           dialog.clear()
 
@@ -516,7 +515,6 @@ export function Prompt(props: PromptProps) {
         title: "Skills",
         name: "prompt.skills",
         category: "Prompt",
-        slashName: "skills",
         run: () => {
           dialog.replace(() => (
             <DialogSkill
@@ -538,7 +536,6 @@ export function Prompt(props: PromptProps) {
         name: "workspace.set",
         category: "Session",
         enabled: Flag.OPENCODE_EXPERIMENTAL_WORKSPACES,
-        slashName: "warp",
         run: () => {
           workspace.open()
         },
@@ -548,7 +545,6 @@ export function Prompt(props: PromptProps) {
         desc: "Move to another project dir",
         name: "session.move",
         category: "Session",
-        slashName: "move",
         run: () => {
           move.open()
         },
@@ -1068,27 +1064,6 @@ export function Prompt(props: PromptProps) {
         command: inputText,
       })
       setStore("mode", "normal")
-    } else if (
-      inputText.startsWith("/") &&
-      sync.data.command.some((x) => x.name === inputText.split("\n")[0].split(" ")[0].slice(1))
-    ) {
-      move.startSubmit()
-      // Parse command from first line, preserve multi-line content in arguments
-      const firstLineEnd = inputText.indexOf("\n")
-      const firstLine = firstLineEnd === -1 ? inputText : inputText.slice(0, firstLineEnd)
-      const [command, ...firstLineArgs] = firstLine.split(" ")
-      const restOfInput = firstLineEnd === -1 ? "" : inputText.slice(firstLineEnd + 1)
-      const args = firstLineArgs.join(" ") + (restOfInput ? "\n" + restOfInput : "")
-
-      void sdk.client.session.command({
-        sessionID,
-        command: command.slice(1),
-        arguments: args,
-        agent: agent.name,
-        model: `${selectedModel.providerID}/${selectedModel.modelID}`,
-        variant,
-        parts: nonTextParts.filter((x) => x.type === "file"),
-      })
     } else {
       move.startSubmit()
       sdk.client.session

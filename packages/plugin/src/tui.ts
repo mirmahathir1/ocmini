@@ -97,10 +97,6 @@ export type TuiCommand = {
   suggested?: boolean
   hidden?: boolean
   enabled?: boolean
-  slash?: {
-    name: string
-    aliases?: string[]
-  }
   onSelect?: (dialog?: TuiDialogStack) => void | Promise<void>
 }
 

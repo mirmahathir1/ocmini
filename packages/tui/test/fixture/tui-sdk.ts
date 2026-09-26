@@ -73,7 +73,6 @@ export function createFetch(override?: FetchHandler, events?: ReturnType<typeof 
     if (
       [
         "/agent",
-        "/command",
         "/experimental/workspace",
         "/experimental/workspace/status",
         "/formatter",
