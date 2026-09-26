@@ -555,7 +555,7 @@ worth revisiting once, with numbers.
 **Prompt** (verbatim, single message; no follow-up except answering direct questions from
 the model):
 
-> Build a Python CLI called `tsum` that reads one or more CSV files and prints a summary
+> Build a Python CLI called `tsum` in a new folder `tsum` that reads one or more CSV files and prints a summary
 > table: for every numeric column, the count, min, max, mean, and median, rounded to 3
 > decimals. Non-numeric columns report count and number of distinct values. Support
 > `--column NAME` to restrict output, `--json` for machine-readable output, and reading
