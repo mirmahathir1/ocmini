@@ -1,0 +1,371 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>00_session_setup.log</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <style id="json-fold-style">
+    .json-fold-toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      display: flex;
+      justify-content: flex-end;
+      gap: .4rem;
+      padding: .45rem .75rem;
+      border-bottom: 1px solid var(--bs-border-color, #dee2e6);
+      background: rgba(255, 255, 255, .96);
+      backdrop-filter: blur(4px);
+    }
+    .json-fold-toolbar button {
+      border: 1px solid var(--bs-border-color, #ced4da);
+      border-radius: .35rem;
+      padding: .2rem .55rem;
+      background: var(--bs-body-bg, #fff);
+      color: var(--bs-body-color, #212529);
+      font: 12px/1.4 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      cursor: pointer;
+    }
+    .json-fold-toolbar button:hover {
+      background: var(--bs-tertiary-bg, #f8f9fa);
+    }
+    .json-tree {
+      display: inline-block;
+      min-width: max-content;
+      vertical-align: top;
+      --json-indent: 1.4rem;
+    }
+    .json-tree-node {
+      display: inline-block;
+      vertical-align: top;
+    }
+    .json-tree-node > summary {
+      display: inline-block;
+      cursor: pointer;
+      list-style: none;
+      user-select: none;
+      border-radius: 2px;
+      padding: 0 .12rem;
+    }
+    .json-tree-node > summary::-webkit-details-marker { display: none; }
+    .json-tree-node > summary::before {
+      content: "\25B8";
+      display: inline-block;
+      width: 1em;
+      margin-right: .15rem;
+      color: #6c757d;
+    }
+    .json-tree-node[open] > summary::before { content: "\25BE"; }
+    .json-tree-node > summary:hover,
+    .json-tree-node > summary:focus-visible {
+      background: rgba(127, 127, 127, .16);
+      outline: none;
+    }
+    .json-tree-node[open] > summary .json-tree-ellipsis { display: none; }
+    .json-tree-node[open] > summary .json-tree-close-inline { display: none; }
+    .json-tree-children {
+      display: block;
+      margin-left: var(--json-indent);
+      border-left: 1px dotted rgba(127, 127, 127, .42);
+      padding-left: .75rem;
+    }
+    .json-tree-row {
+      display: block;
+      min-height: 1.25em;
+    }
+    .json-tree-key { font-weight: 600; }
+    .json-tree-colon { margin-right: .25rem; }
+    .json-tree-close {
+      display: block;
+      margin-left: 1em;
+    }
+    .json-tree-string { color: #0a7b34; }
+    .json-tree-number { color: #0b5ed7; }
+    .json-tree-boolean { color: #8250df; }
+    .json-tree-null { color: #6c757d; font-style: italic; }
+    .json-tree-ellipsis { color: #6c757d; }
+    @media (prefers-color-scheme: dark) {
+      .json-fold-toolbar { background: rgba(33, 37, 41, .96); }
+      .json-tree-string { color: #75d39a; }
+      .json-tree-number { color: #75b7ff; }
+      .json-tree-boolean { color: #c5a3ff; }
+    }
+  </style>
+</head>
+<body class="bg-body-tertiary">
+  <main class="container-fluid p-3 p-md-4">
+    <div class="card shadow-sm">
+      <div class="card-body p-0">
+        <pre class="m-0 p-3 overflow-auto bg-body font-monospace" style="white-space: pre; tab-size: 4;">════════ ocmini session log ════════
+  started     2026-09-27T03:06:02.273Z   (block times below are local, UTC-06:00)
+  ocmini      1.18.30 (b075d16474)   pid 23167   bun 1.4.2   darwin arm64
+  cwd         /Users/mirmahathirmohammad/Documents/ocmini
+  log dir     /Users/mirmahathirmohammad/Documents/ocmini-logs
+  log file    20260927T030602Z-23167.log
+  argv        --log-dir /Users/mirmahathirmohammad/Documents/ocmini-logs
+  perms       ask, per the permission rules
+  config      files are listed as CONFIG blocks when loaded
+
+[21:06:03.612 +1.339s] ── CONFIG ── loaded
+  /Users/mirmahathirmohammad/.config/opencode/opencode.jsonc
+
+[21:06:18.564 +16.291s] ── SESSION ── main
+  id          ses_f1f2c19bcffe4RjT4me0NBjCNH
+  directory   /Users/mirmahathirmohammad/Documents/ocmini/packages/opencode
+  title       New session - 2026-09-27T03:06:18.563Z
+  agent       build
+
+</pre>
+      </div>
+    </div>
+  </main>
+
+  <script id="json-fold-script">
+  (() => {
+    "use strict";
+
+    function matchingEnd(text, start) {
+      const first = text[start];
+      if (first !== "{" && first !== "[") return -1;
+      const stack = [first === "{" ? "}" : "]"];
+      let inString = false;
+      let escaped = false;
+      for (let i = start + 1; i < text.length; i++) {
+        const ch = text[i];
+        if (inString) {
+          if (escaped) escaped = false;
+          else if (ch === "\\") escaped = true;
+          else if (ch === '"') inString = false;
+          continue;
+        }
+        if (ch === '"') inString = true;
+        else if (ch === "{") stack.push("}");
+        else if (ch === "[") stack.push("]");
+        else if (ch === "}" || ch === "]") {
+          if (!stack.length || stack[stack.length - 1] !== ch) return -1;
+          stack.pop();
+          if (!stack.length) return i;
+        }
+      }
+      return -1;
+    }
+
+    function findJsonRanges(text) {
+      const ranges = [];
+      for (let i = 0; i < text.length; i++) {
+        if (text[i] !== "{" && text[i] !== "[") continue;
+        const end = matchingEnd(text, i);
+        if (end < 0) continue;
+        const candidate = text.slice(i, end + 1);
+        try {
+          JSON.parse(candidate);
+          ranges.push([i, end + 1]);
+          i = end;
+        } catch (_) {}
+      }
+      return ranges;
+    }
+
+    // Parse JSON into a structural tree while retaining exact source ranges for every token.
+    function parseExactJson(text) {
+      let i = 0;
+      const ws = () => { while (i < text.length && /[\x20\t\r\n]/.test(text[i])) i++; };
+
+      function stringToken() {
+        const start = i;
+        if (text[i++] !== '"') throw new Error("string");
+        let escaped = false;
+        while (i < text.length) {
+          const ch = text[i++];
+          if (escaped) escaped = false;
+          else if (ch === "\\") escaped = true;
+          else if (ch === '"') return { start, end: i };
+        }
+        throw new Error("unterminated string");
+      }
+
+      function primitive(type) {
+        const start = i;
+        if (type === "string") {
+          const t = stringToken();
+          return { type, start: t.start, end: t.end };
+        }
+        if (type === "number") {
+          const m = text.slice(i).match(/^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?/);
+          if (!m) throw new Error("number");
+          i += m[0].length;
+          return { type, start, end: i };
+        }
+        const lit = type === "boolean" ? (text.startsWith("true", i) ? "true" : "false") : "null";
+        if (!text.startsWith(lit, i)) throw new Error(type);
+        i += lit.length;
+        return { type, start, end: i };
+      }
+
+      function value() {
+        ws();
+        const start = i;
+        const ch = text[i];
+        if (ch === "{") {
+          i++; ws();
+          const props = [];
+          if (text[i] !== "}") {
+            while (true) {
+              ws();
+              const key = stringToken();
+              ws();
+              if (text[i++] !== ":") throw new Error("colon");
+              const val = value();
+              props.push({ key, value: val });
+              ws();
+              if (text[i] === ",") { i++; continue; }
+              break;
+            }
+          }
+          if (text[i++] !== "}") throw new Error("object close");
+          return { type: "object", start, end: i, children: props };
+        }
+        if (ch === "[") {
+          i++; ws();
+          const items = [];
+          if (text[i] !== "]") {
+            while (true) {
+              items.push(value());
+              ws();
+              if (text[i] === ",") { i++; continue; }
+              break;
+            }
+          }
+          if (text[i++] !== "]") throw new Error("array close");
+          return { type: "array", start, end: i, children: items };
+        }
+        if (ch === '"') return primitive("string");
+        if (ch === "t" || ch === "f") return primitive("boolean");
+        if (ch === "n") return primitive("null");
+        return primitive("number");
+      }
+
+      const root = value();
+      ws();
+      if (i !== text.length) throw new Error("trailing content");
+      return root;
+    }
+
+    function span(cls, value) {
+      const el = document.createElement("span");
+      if (cls) el.className = cls;
+      el.textContent = value;
+      return el;
+    }
+
+    function renderTree(jsonText) {
+      let ast;
+      try { ast = parseExactJson(jsonText); }
+      catch (_) { return document.createTextNode(jsonText); }
+
+      function renderValue(node) {
+        if (node.type !== "object" && node.type !== "array") {
+          return span("json-tree-primitive json-tree-" + node.type, jsonText.slice(node.start, node.end));
+        }
+
+        const isObj = node.type === "object";
+        const openChar = isObj ? "{" : "[";
+        const closeChar = isObj ? "}" : "]";
+        const details = document.createElement("details");
+        details.className = "json-tree-node";
+        details.dataset.jsonSource = jsonText.slice(node.start, node.end);
+
+        const summary = document.createElement("summary");
+        summary.append(
+          span("json-tree-open", openChar),
+          span("json-tree-ellipsis", node.children.length ? " ... " : ""),
+          span("json-tree-close-inline", closeChar)
+        );
+        details.append(summary);
+
+        if (node.children.length) {
+          const children = document.createElement("div");
+          children.className = "json-tree-children";
+
+          node.children.forEach((entry, index) => {
+            const row = document.createElement("div");
+            row.className = "json-tree-row";
+            if (isObj) {
+              row.append(
+                span("json-tree-key", jsonText.slice(entry.key.start, entry.key.end)),
+                span("json-tree-colon", ": "),
+                renderValue(entry.value)
+              );
+            } else {
+              row.append(renderValue(entry));
+            }
+            if (index < node.children.length - 1) row.append(span("json-tree-comma", ","));
+            children.append(row);
+          });
+          details.append(children);
+        }
+        details.append(span("json-tree-close", closeChar));
+        return details;
+      }
+
+      const tree = document.createElement("span");
+      tree.className = "json-tree";
+      tree.dataset.jsonSource = jsonText;
+      tree.append(renderValue(ast));
+      return tree;
+    }
+
+    function enhancePre(pre) {
+      const original = pre.textContent;
+      const ranges = findJsonRanges(original);
+      if (!ranges.length) return 0;
+
+      const fragment = document.createDocumentFragment();
+      let cursor = 0;
+      for (const [start, end] of ranges) {
+        if (start > cursor) fragment.append(document.createTextNode(original.slice(cursor, start)));
+        fragment.append(renderTree(original.slice(start, end)));
+        cursor = end;
+      }
+      if (cursor < original.length) fragment.append(document.createTextNode(original.slice(cursor)));
+      pre.replaceChildren(fragment);
+      pre.dataset.originalText = original;
+      return ranges.length;
+    }
+
+    function setAll(collapsed) {
+      document.querySelectorAll(".json-tree-node").forEach((node) => {
+        node.open = !collapsed;
+      });
+    }
+
+    let count = 0;
+    document.querySelectorAll("pre").forEach((pre) => { count += enhancePre(pre); });
+    if (!count) return;
+
+    // All JSON objects and arrays start collapsed.
+    setAll(true);
+
+    const toolbar = document.createElement("div");
+    toolbar.className = "json-fold-toolbar";
+    toolbar.setAttribute("role", "toolbar");
+    toolbar.setAttribute("aria-label", "JSON controls");
+
+    const expand = document.createElement("button");
+    expand.type = "button";
+    expand.textContent = "Expand all JSON";
+    expand.addEventListener("click", () => setAll(false));
+
+    const collapse = document.createElement("button");
+    collapse.type = "button";
+    collapse.textContent = "Collapse all JSON";
+    collapse.addEventListener("click", () => setAll(true));
+
+    toolbar.append(expand, collapse);
+    document.body.prepend(toolbar);
+  })();
+  </script>
+</body>
+</html>

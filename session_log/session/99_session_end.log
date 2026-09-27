@@ -1,6 +1,0 @@
-════════ session end ════════ [21:13:43.560]
-  exit        completed (0)   wall 7m41s (waiting: user 10s, rate limit 0s)
-  turns       25   requests 26 (1 aux)   retries 0   429s 0
-  tokens      in 681,843 · cached 645,385 · out 18,055 (reasoning 8,693)
-  tools       bash 13 · todowrite 5 · write 5 · read 2
-  questions   0   denials 0   compactions 0   errors 0
