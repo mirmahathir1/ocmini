@@ -222,7 +222,12 @@ function scope(sessionID: string | undefined): Scope | undefined {
   const existing = scopes.get(sessionID)
   if (existing) return existing
   counters.root++
-  const created = { label: counters.root === 1 ? "main" : `main#${counters.root}`, turn: 0, turns: 0, tokens: emptyTokens() }
+  const created = {
+    label: counters.root === 1 ? "main" : `main#${counters.root}`,
+    turn: 0,
+    turns: 0,
+    tokens: emptyTokens(),
+  }
   scopes.set(sessionID, created)
   return created
 }
@@ -470,14 +475,18 @@ export function session(info: {
     label = counters.root === 1 ? "main" : `main#${counters.root}`
   }
   scopes.set(info.id, { label, turn: 0, turns: 0, tokens: emptyTokens() })
-  block("SESSION", [label], [
-    field("id", info.id),
-    ...(info.parentID ? [field("parent", `${info.parentID} (${scope(info.parentID)?.label})`)] : []),
-    ...(info.directory ? [field("directory", info.directory)] : []),
-    ...(info.title ? [field("title", info.title)] : []),
-    ...(info.agent ? [field("agent", info.agent)] : []),
-    ...(info.permission?.length ? ["permission", ...indent(rules(info.permission).join("\n"))] : []),
-  ])
+  block(
+    "SESSION",
+    [label],
+    [
+      field("id", info.id),
+      ...(info.parentID ? [field("parent", `${info.parentID} (${scope(info.parentID)?.label})`)] : []),
+      ...(info.directory ? [field("directory", info.directory)] : []),
+      ...(info.title ? [field("title", info.title)] : []),
+      ...(info.agent ? [field("agent", info.agent)] : []),
+      ...(info.permission?.length ? ["permission", ...indent(rules(info.permission).join("\n"))] : []),
+    ],
+  )
 }
 
 export function prompt(sessionID: string, parts: ReadonlyArray<unknown>) {
@@ -503,9 +512,11 @@ export function turnStart(sessionID: string, info: { step: number; agent: string
 
 export function turnEnd(sessionID: string, info: { step: number; outcome: string; finish?: string }) {
   if (!enabled()) return
-  block(`TURN ${info.step} END`, [scope(sessionID)?.label, info.outcome, info.finish && `finish ${info.finish}`], [
-    field("totals", runningLine()),
-  ])
+  block(
+    `TURN ${info.step} END`,
+    [scope(sessionID)?.label, info.outcome, info.finish && `finish ${info.finish}`],
+    [field("totals", runningLine())],
+  )
 }
 
 const seen = new Map<string, string>()
@@ -535,33 +546,48 @@ export function model(
 ) {
   if (!enabled()) return
   const free = info.modelID.endsWith("-contributor-free") ? "✓ contributor-free" : "(not a -contributor-free id)"
-  once(`model|${sessionID}|${info.agent}`, "MODEL", [scope(sessionID)?.label, `agent ${info.agent}`], [
-    field("model", `${info.providerID}/${info.modelID}   ${free}`),
-    field("base url", info.baseURL ?? "(provider default)"),
-    field("runtime", info.runtime + (info.fallback ? ` (native unavailable: ${info.fallback})` : "")),
-    // Reasoning effort, store and include live here; store/include decide how
-    // reasoning carries across turns (ocmini-spec.md §3).
-    field("options", info.options && Object.keys(info.options).length ? JSON.stringify(info.options) : "(none)"),
-    field("max output", info.maxOutput === undefined ? "(provider default)" : num(info.maxOutput)),
-    ...(info.small ? [field("small", "yes")] : []),
-  ])
+  once(
+    `model|${sessionID}|${info.agent}`,
+    "MODEL",
+    [scope(sessionID)?.label, `agent ${info.agent}`],
+    [
+      field("model", `${info.providerID}/${info.modelID}   ${free}`),
+      field("base url", info.baseURL ?? "(provider default)"),
+      field("runtime", info.runtime + (info.fallback ? ` (native unavailable: ${info.fallback})` : "")),
+      // Reasoning effort, store and include live here; store/include decide how
+      // reasoning carries across turns (ocmini-spec.md §3).
+      field("options", info.options && Object.keys(info.options).length ? JSON.stringify(info.options) : "(none)"),
+      field("max output", info.maxOutput === undefined ? "(provider default)" : num(info.maxOutput)),
+      ...(info.small ? [field("small", "yes")] : []),
+    ],
+  )
 }
 
 export function agent(sessionID: string, info: { name: string; tools: string[]; permission: ReadonlyArray<Rule> }) {
   if (!enabled()) return
-  once(`agent|${sessionID}|${info.name}`, "AGENT", [scope(sessionID)?.label, info.name], [
-    field("tools", `${info.tools.length}: ${info.tools.join(", ")}`),
-    "permission",
-    ...indent(rules(info.permission).join("\n")),
-  ])
+  once(
+    `agent|${sessionID}|${info.name}`,
+    "AGENT",
+    [scope(sessionID)?.label, info.name],
+    [
+      field("tools", `${info.tools.length}: ${info.tools.join(", ")}`),
+      "permission",
+      ...indent(rules(info.permission).join("\n")),
+    ],
+  )
 }
 
 export function context(sessionID: string, info: { instructions: string[]; skills: string[] }) {
   if (!enabled()) return
-  once(`context|${sessionID}`, "CONTEXT", [scope(sessionID)?.label], [
-    field("rules", info.instructions.length ? info.instructions.join(", ") : "(no instruction files)"),
-    field("skills", info.skills.length ? `${info.skills.length}: ${info.skills.join(", ")}` : "(none)"),
-  ])
+  once(
+    `context|${sessionID}`,
+    "CONTEXT",
+    [scope(sessionID)?.label],
+    [
+      field("rules", info.instructions.length ? info.instructions.join(", ") : "(no instruction files)"),
+      field("skills", info.skills.length ? `${info.skills.length}: ${info.skills.join(", ")}` : "(none)"),
+    ],
+  )
 }
 
 export function config(source: string) {
@@ -645,21 +671,27 @@ export async function tap(
   const headers = new Headers(input instanceof Request ? input.headers : undefined)
   new Headers(init?.headers).forEach((value, name) => headers.set(name, value))
   const body = bodyText(init?.body)
-  block(`REQUEST #${n}`, [label, turn, `purpose ${purpose}`], [
-    `${method} ${url}` + (body !== undefined ? `   (${num(Buffer.byteLength(body))} bytes)` : ""),
-    "headers",
-    ...headerLines(headers),
-    ...(body !== undefined ? section("body", pretty(body)) : []),
-  ])
+  block(
+    `REQUEST #${n}`,
+    [label, turn, `purpose ${purpose}`],
+    [
+      `${method} ${url}` + (body !== undefined ? `   (${num(Buffer.byteLength(body))} bytes)` : ""),
+      "headers",
+      ...headerLines(headers),
+      ...(body !== undefined ? section("body", pretty(body)) : []),
+    ],
+  )
 
   const started = Date.now()
   let res: Response
   try {
     res = await send()
   } catch (error) {
-    block(`RESPONSE #${n}`, [label, turn, "no response", `after ${secs(Date.now() - started)}`], [
-      ...section("error", describe(error)),
-    ])
+    block(
+      `RESPONSE #${n}`,
+      [label, turn, "no response", `after ${secs(Date.now() - started)}`],
+      [...section("error", describe(error))],
+    )
     throw error
   }
 
@@ -759,9 +791,7 @@ function flush(reason: string) {
 
 function findKey(value: unknown, key: string, depth = 0): unknown[] {
   if (!value || typeof value !== "object" || depth > 4) return []
-  return Object.entries(value).flatMap(([name, item]) =>
-    name === key ? [item] : findKey(item, key, depth + 1),
-  )
+  return Object.entries(value).flatMap(([name, item]) => (name === key ? [item] : findKey(item, key, depth + 1)))
 }
 
 // Collects one model call as the processor sees it — text, reasoning, tool
@@ -831,23 +861,24 @@ export function call(sessionID: string, purpose: string) {
         }
       }
       const n = lastRequest.get(`${sessionID}|${purpose}`)
-      block(n ? `RESPONSE #${n} SUMMARY` : "RESPONSE SUMMARY", [
-        ...where(sessionID),
-        `purpose ${purpose}`,
-        `finish ${state.finish ?? "none"}`,
-        outcome.result,
-      ], [
-        field("took", secs(Date.now() - state.started)),
-        ...(state.responseID ? [field("response", state.responseID)] : []),
-        ...section("text", state.text || "(none)"),
-        ...(state.reasoning ? section("reasoning", state.reasoning) : []),
-        ...(state.encrypted ? [field("encrypted", `${num(state.encrypted)} bytes of reasoning`)] : []),
-        ...(state.toolCalls.length ? section("tool calls", state.toolCalls.join("\n")) : [field("tool calls", "(none)")]),
-        field("usage", state.usage ? tokensLine(state.usage) : "(not reported)"),
-        field("session", runningLine()),
-        ...state.errors.map((item) => field("error", item)),
-        ...(outcome.error !== undefined ? section("error", describe(outcome.error)) : []),
-      ])
+      block(
+        n ? `RESPONSE #${n} SUMMARY` : "RESPONSE SUMMARY",
+        [...where(sessionID), `purpose ${purpose}`, `finish ${state.finish ?? "none"}`, outcome.result],
+        [
+          field("took", secs(Date.now() - state.started)),
+          ...(state.responseID ? [field("response", state.responseID)] : []),
+          ...section("text", state.text || "(none)"),
+          ...(state.reasoning ? section("reasoning", state.reasoning) : []),
+          ...(state.encrypted ? [field("encrypted", `${num(state.encrypted)} bytes of reasoning`)] : []),
+          ...(state.toolCalls.length
+            ? section("tool calls", state.toolCalls.join("\n"))
+            : [field("tool calls", "(none)")]),
+          field("usage", state.usage ? tokensLine(state.usage) : "(not reported)"),
+          field("session", runningLine()),
+          ...state.errors.map((item) => field("error", item)),
+          ...(outcome.error !== undefined ? section("error", describe(outcome.error)) : []),
+        ],
+      )
     },
   }
 }
@@ -859,11 +890,15 @@ export function retry(
   if (!enabled()) return
   totals.retries++
   totals.waitRate += info.wait
-  block("RETRY", [...where(sessionID), `attempt ${info.attempt}`], [
-    field("cause", info.message),
-    ...(info.error !== undefined ? section("error", pretty(info.error)) : []),
-    field("backoff", `${secs(info.wait)} → next attempt at ${clock(info.next)}`),
-  ])
+  block(
+    "RETRY",
+    [...where(sessionID), `attempt ${info.attempt}`],
+    [
+      field("cause", info.message),
+      ...(info.error !== undefined ? section("error", pretty(info.error)) : []),
+      field("backoff", `${secs(info.wait)} → next attempt at ${clock(info.next)}`),
+    ],
+  )
 }
 
 // `error_` because `error` reads badly as a parameter name everywhere else.
@@ -920,19 +955,25 @@ export function tool(input: { sessionID: string; callID: string; name: string; a
   block(`TOOL #${n}`, meta(), section("args", pretty(input.args)))
   return {
     end(result: { output: string; title?: string; metadata?: Record<string, unknown> }) {
-      block(`TOOL #${n} END`, [...meta(), `ok · ${secs(Date.now() - started)}`], [
-        ...(result.title ? [field("title", result.title)] : []),
-        ...truncationLines(result.metadata),
-        ...section("output", result.output),
-        ...metadataLines(result.metadata),
-      ])
+      block(
+        `TOOL #${n} END`,
+        [...meta(), `ok · ${secs(Date.now() - started)}`],
+        [
+          ...(result.title ? [field("title", result.title)] : []),
+          ...truncationLines(result.metadata),
+          ...section("output", result.output),
+          ...metadataLines(result.metadata),
+        ],
+      )
     },
     fail(error: unknown) {
       totals.toolErrors++
       const aborted = error instanceof Error && (error.name === "AbortError" || /abort/i.test(error.message))
-      block(`TOOL #${n} END`, [...meta(), `${aborted ? "aborted" : "error"} · ${secs(Date.now() - started)}`], [
-        ...section("error", message(error)),
-      ])
+      block(
+        `TOOL #${n} END`,
+        [...meta(), `${aborted ? "aborted" : "error"} · ${secs(Date.now() - started)}`],
+        [...section("error", message(error))],
+      )
     },
   }
 }
@@ -955,17 +996,21 @@ export function permission(input: {
   if (input.outcome === "deny") totals.denials++
   if (input.outcome === "ask" && input.requestID)
     asked.set(input.requestID, { sessionID: input.sessionID, at: Date.now(), label: input.permission })
-  block("PERMISSION", [...where(input.sessionID), input.permission, input.callID, input.outcome], [
-    ...input.checks.map(
-      (check) =>
-        `${check.pattern} → ${check.rule.action} ` +
-        (check.matched ? `(rule: ${check.rule.permission} ${check.rule.pattern})` : "(no rule matched; default)"),
-    ),
-    ...(input.outcome === "ask" ? [field("asked", `request ${input.requestID}, waiting for a reply`)] : []),
-    // What the user is shown (the command, the diff) — in full, since this is
-    // what they are deciding on.
-    ...(input.outcome === "ask" && input.metadata ? metadataLines(input.metadata, Infinity) : []),
-  ])
+  block(
+    "PERMISSION",
+    [...where(input.sessionID), input.permission, input.callID, input.outcome],
+    [
+      ...input.checks.map(
+        (check) =>
+          `${check.pattern} → ${check.rule.action} ` +
+          (check.matched ? `(rule: ${check.rule.permission} ${check.rule.pattern})` : "(no rule matched; default)"),
+      ),
+      ...(input.outcome === "ask" ? [field("asked", `request ${input.requestID}, waiting for a reply`)] : []),
+      // What the user is shown (the command, the diff) — in full, since this is
+      // what they are deciding on.
+      ...(input.outcome === "ask" && input.metadata ? metadataLines(input.metadata, Infinity) : []),
+    ],
+  )
 }
 
 export function permissionReply(input: {
@@ -981,11 +1026,15 @@ export function permissionReply(input: {
   const wait = entry ? Date.now() - entry.at : 0
   totals.waitUser += input.cascade ? 0 : wait
   if (input.reply === "reject") totals.denials++
-  block("PERMISSION REPLY", [...where(input.sessionID), entry?.label, input.reply, input.cascade && "follows an earlier reply"], [
-    field("request", input.requestID),
-    field("waited", secs(wait)),
-    ...(input.message ? section("feedback", input.message) : []),
-  ])
+  block(
+    "PERMISSION REPLY",
+    [...where(input.sessionID), entry?.label, input.reply, input.cascade && "follows an earlier reply"],
+    [
+      field("request", input.requestID),
+      field("waited", secs(wait)),
+      ...(input.message ? section("feedback", input.message) : []),
+    ],
+  )
 }
 
 type QuestionInfo = {
@@ -1007,14 +1056,18 @@ export function questionAsk(input: {
   const n = ++counters.question
   totals.questions++
   questions.set(input.id, { n, at: Date.now(), sessionID: input.sessionID })
-  block(`QUESTION #${n}`, [...where(input.sessionID), input.callID, `question ${totals.questions} this session`], [
-    field("request", input.id),
-    ...input.questions.flatMap((item, index) => [
-      `${index + 1}. [${item.header}] ${item.question}`,
-      ...item.options.map((option) => `     - ${option.label} — ${option.description}`),
-      `     (${item.multiple ? "multiple choice" : "single choice"}${item.custom === false ? ", no custom answer" : ", custom answer allowed"})`,
-    ]),
-  ])
+  block(
+    `QUESTION #${n}`,
+    [...where(input.sessionID), input.callID, `question ${totals.questions} this session`],
+    [
+      field("request", input.id),
+      ...input.questions.flatMap((item, index) => [
+        `${index + 1}. [${item.header}] ${item.question}`,
+        ...item.options.map((option) => `     - ${option.label} — ${option.description}`),
+        `     (${item.multiple ? "multiple choice" : "single choice"}${item.custom === false ? ", no custom answer" : ", custom answer allowed"})`,
+      ]),
+    ],
+  )
 }
 
 export function questionReply(input: { id: string; answers: ReadonlyArray<ReadonlyArray<string>> }) {
@@ -1023,10 +1076,16 @@ export function questionReply(input: { id: string; answers: ReadonlyArray<Readon
   questions.delete(input.id)
   const wait = entry ? Date.now() - entry.at : 0
   totals.waitUser += wait
-  block(entry ? `QUESTION #${entry.n} ANSWER` : "QUESTION ANSWER", [...where(entry?.sessionID), `waited ${secs(wait)}`], [
-    field("request", input.id),
-    ...input.answers.map((answer, index) => `${index + 1}. ${answer.map((item) => JSON.stringify(item)).join(", ") || "(no selection)"}`),
-  ])
+  block(
+    entry ? `QUESTION #${entry.n} ANSWER` : "QUESTION ANSWER",
+    [...where(entry?.sessionID), `waited ${secs(wait)}`],
+    [
+      field("request", input.id),
+      ...input.answers.map(
+        (answer, index) => `${index + 1}. ${answer.map((item) => JSON.stringify(item)).join(", ") || "(no selection)"}`,
+      ),
+    ],
+  )
 }
 
 export function questionReject(input: { id: string }) {
@@ -1035,9 +1094,11 @@ export function questionReject(input: { id: string }) {
   questions.delete(input.id)
   const wait = entry ? Date.now() - entry.at : 0
   totals.waitUser += wait
-  block(entry ? `QUESTION #${entry.n} DISMISSED` : "QUESTION DISMISSED", [...where(entry?.sessionID), `waited ${secs(wait)}`], [
-    field("request", input.id),
-  ])
+  block(
+    entry ? `QUESTION #${entry.n} DISMISSED` : "QUESTION DISMISSED",
+    [...where(entry?.sessionID), `waited ${secs(wait)}`],
+    [field("request", input.id)],
+  )
 }
 
 export function subagentStart(input: {
@@ -1052,24 +1113,37 @@ export function subagentStart(input: {
 }) {
   if (!enabled()) return
   const [parent, turn] = where(input.parentSessionID)
-  block("SUBAGENT START", [scope(input.sessionID)?.label, `from ${parent}`, turn, input.callID, input.background && "background"], [
-    field("session", input.sessionID),
-    field("agent", input.agent),
-    field("task", input.description),
-    ...section("prompt", input.prompt),
-    "permission",
-    ...indent(rules(input.permission).join("\n")),
-  ])
+  block(
+    "SUBAGENT START",
+    [scope(input.sessionID)?.label, `from ${parent}`, turn, input.callID, input.background && "background"],
+    [
+      field("session", input.sessionID),
+      field("agent", input.agent),
+      field("task", input.description),
+      ...section("prompt", input.prompt),
+      "permission",
+      ...indent(rules(input.permission).join("\n")),
+    ],
+  )
 }
 
-export function subagentEnd(input: { sessionID: string; status: "completed" | "error"; result?: string; error?: unknown }) {
+export function subagentEnd(input: {
+  sessionID: string
+  status: "completed" | "error"
+  result?: string
+  error?: unknown
+}) {
   if (!enabled()) return
   const s = scope(input.sessionID)
-  block("SUBAGENT END", [s?.label, input.status], [
-    field("totals", `turns ${s?.turns ?? 0} · ${tokensLine(s?.tokens ?? emptyTokens())}`),
-    ...(input.result !== undefined ? section("result", input.result) : []),
-    ...(input.error !== undefined ? section("error", message(input.error)) : []),
-  ])
+  block(
+    "SUBAGENT END",
+    [s?.label, input.status],
+    [
+      field("totals", `turns ${s?.turns ?? 0} · ${tokensLine(s?.tokens ?? emptyTokens())}`),
+      ...(input.result !== undefined ? section("result", input.result) : []),
+      ...(input.error !== undefined ? section("error", message(input.error)) : []),
+    ],
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -1077,18 +1151,24 @@ export function subagentEnd(input: { sessionID: string; status: "completed" | "e
 
 export function overflow(sessionID: string, info: { count?: number; usable?: number; source: string }) {
   if (!enabled()) return
-  block("OVERFLOW", [...where(sessionID), info.source], [
-    ...(info.count !== undefined ? [field("tokens", num(info.count))] : []),
-    ...(info.usable !== undefined ? [field("usable", `${num(info.usable)} (compaction threshold)`)] : []),
-  ])
+  block(
+    "OVERFLOW",
+    [...where(sessionID), info.source],
+    [
+      ...(info.count !== undefined ? [field("tokens", num(info.count))] : []),
+      ...(info.usable !== undefined ? [field("usable", `${num(info.usable)} (compaction threshold)`)] : []),
+    ],
+  )
 }
 
 export function erase(sessionID: string, info: { parts: Array<{ callID: string; tool: string; tokens: number }> }) {
   if (!enabled()) return
   const freed = info.parts.reduce((sum, item) => sum + item.tokens, 0)
-  block("ERASE TOOL OUTPUT", [...where(sessionID), `${info.parts.length} calls`, `~${num(freed)} tokens freed`], [
-    ...info.parts.map((item) => `${item.tool} ${item.callID} (~${num(item.tokens)} tokens)`),
-  ])
+  block(
+    "ERASE TOOL OUTPUT",
+    [...where(sessionID), `${info.parts.length} calls`, `~${num(freed)} tokens freed`],
+    [...info.parts.map((item) => `${item.tool} ${item.callID} (~${num(item.tokens)} tokens)`)],
+  )
 }
 
 export function compaction(
@@ -1100,47 +1180,72 @@ export function compaction(
 ) {
   if (!enabled()) return
   if (info.stage === "scheduled") {
-    block("COMPACTION SCHEDULED", [...where(sessionID), info.auto ? "auto" : "manual", info.overflow && "after overflow"])
+    block("COMPACTION SCHEDULED", [
+      ...where(sessionID),
+      info.auto ? "auto" : "manual",
+      info.overflow && "after overflow",
+    ])
     return
   }
   if (info.stage === "start") {
     totals.compactions++
-    block("COMPACTION START", [...where(sessionID), info.model], [
-      field("messages", `${info.messages} in history, ${info.head} summarised`),
-      field("kept from", info.tail ?? "(nothing kept verbatim)"),
-      field("previous", info.previousSummary ? "summary of an earlier compaction folded in" : "first compaction"),
-    ])
+    block(
+      "COMPACTION START",
+      [...where(sessionID), info.model],
+      [
+        field("messages", `${info.messages} in history, ${info.head} summarised`),
+        field("kept from", info.tail ?? "(nothing kept verbatim)"),
+        field("previous", info.previousSummary ? "summary of an earlier compaction folded in" : "first compaction"),
+      ],
+    )
     return
   }
-  block("COMPACTION END", [...where(sessionID), info.result], [
-    ...(info.tokens ? [field("tokens", `in ${num(info.tokens.input)} · out ${num(info.tokens.output)}`)] : []),
-    "summary is the text of the RESPONSE SUMMARY just above",
-    ...(info.error !== undefined ? section("error", pretty(info.error)) : []),
-  ])
+  block(
+    "COMPACTION END",
+    [...where(sessionID), info.result],
+    [
+      ...(info.tokens ? [field("tokens", `in ${num(info.tokens.input)} · out ${num(info.tokens.output)}`)] : []),
+      "summary is the text of the RESPONSE SUMMARY just above",
+      ...(info.error !== undefined ? section("error", pretty(info.error)) : []),
+    ],
+  )
 }
 
 export function todo(sessionID: string, todos: ReadonlyArray<{ content: string; status: string; priority: string }>) {
   if (!enabled()) return
-  block("TODO", [...where(sessionID), `${todos.length} items`], todos.length
-    ? todos.map((item) => `[${item.status}] (${item.priority}) ${item.content}`)
-    : ["(cleared)"])
+  block(
+    "TODO",
+    [...where(sessionID), `${todos.length} items`],
+    todos.length ? todos.map((item) => `[${item.status}] (${item.priority}) ${item.content}`) : ["(cleared)"],
+  )
 }
 
 export function reminder(sessionID: string, info: { kind: string; text: string }) {
   if (!enabled()) return
-  block("REMINDER", [...where(sessionID), info.kind, `${num(info.text.length)} chars`], [
-    info.text.split("\n")[0] ?? "",
-    "(full text is in the next REQUEST body)",
-  ])
+  block(
+    "REMINDER",
+    [...where(sessionID), info.kind, `${num(info.text.length)} chars`],
+    [info.text.split("\n")[0] ?? "", "(full text is in the next REQUEST body)"],
+  )
 }
 
-export function format(info: { file: string; formatter: string; command: string[]; exitCode?: number; error?: string }) {
+export function format(info: {
+  file: string
+  formatter: string
+  command: string[]
+  exitCode?: number
+  error?: string
+}) {
   if (!enabled()) return
-  block("FORMAT", [info.formatter, info.error ? "failed to start" : `exit ${info.exitCode}`], [
-    field("file", info.file),
-    field("command", info.command.map(quote).join(" ")),
-    ...(info.error ? [field("error", info.error)] : []),
-  ])
+  block(
+    "FORMAT",
+    [info.formatter, info.error ? "failed to start" : `exit ${info.exitCode}`],
+    [
+      field("file", info.file),
+      field("command", info.command.map(quote).join(" ")),
+      ...(info.error ? [field("error", info.error)] : []),
+    ],
+  )
 }
 
 export * as SessionLog from "./log"

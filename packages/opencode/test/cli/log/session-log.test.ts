@@ -156,9 +156,13 @@ describe("session log contents", () => {
         opencode.expectExit(result, 0)
 
         const log = latest(logDir)
-        expect(log).toMatch(/── TOOL #1 ── main · turn 1 · bash call_1\n  args\n    \{\n      "command": "printf tool-output",/)
+        expect(log).toMatch(
+          /── TOOL #1 ── main · turn 1 · bash call_1\n  args\n    \{\n      "command": "printf tool-output",/,
+        )
         expect(log).toMatch(/── PERMISSION ── main · turn 1 · bash · call_1 · (?:ask|allow)\n  printf tool-output → /)
-        expect(log).toMatch(/── TOOL #1 END ── main · turn 1 · bash call_1 · ok · [\d.]+m?s\n(?:.*\n)*?  output\n    tool-output\n/)
+        expect(log).toMatch(
+          /── TOOL #1 END ── main · turn 1 · bash call_1 · ok · [\d.]+m?s\n(?:.*\n)*?  output\n    tool-output\n/,
+        )
         expect(log).toMatch(/── RESPONSE #\d+ SUMMARY ── main · turn 1 · purpose build · finish tool-calls/)
         expect(log).toContain('  tool calls\n    bash call_1 {"command":"printf tool-output"')
         expect(log).toMatch(/── TURN 2 ── main · agent build/)
@@ -178,7 +182,9 @@ describe("session log contents", () => {
         yield* opencode.run("try a tool", { timeoutMs: 30_000, permission: { bash: "ask" } })
 
         const log = latest(logDir)
-        expect(log).toMatch(/── PERMISSION ── main · turn 1 · bash · call_1 · ask\n  printf refused → ask \(rule: bash \*\)/)
+        expect(log).toMatch(
+          /── PERMISSION ── main · turn 1 · bash · call_1 · ask\n  printf refused → ask \(rule: bash \*\)/,
+        )
         expect(log).toMatch(/── PERMISSION REPLY ── main · turn 1 · bash · reject\n/)
         expect(log).toMatch(/── TOOL #1 END ── main · turn 1 · bash call_1 · error · /)
         expect(log).toMatch(/\n  tools       bash 1   \(errors 1\)\n/)

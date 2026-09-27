@@ -236,22 +236,24 @@ const live: Layer.Layer<
       // Runtime seam: native is an opt-in adapter over @opencode-ai/llm. It
       // either returns a ready LLMEvent stream or a concrete fallback reason.
       if (flags.experimentalNativeLlm) {
-        const native = SessionLog.withCall(call, () => LLMNativeRuntime.stream({
-          model: input.model,
-          provider: item,
-          auth: info,
-          llmClient,
-          messages: prepared.messages,
-          tools: prepared.tools,
-          toolChoice: input.toolChoice,
-          temperature: prepared.params.temperature,
-          topP: prepared.params.topP,
-          topK: prepared.params.topK,
-          maxOutputTokens: prepared.params.maxOutputTokens,
-          providerOptions: prepared.params.options,
-          headers: prepared.headers,
-          abort: input.abort,
-        }))
+        const native = SessionLog.withCall(call, () =>
+          LLMNativeRuntime.stream({
+            model: input.model,
+            provider: item,
+            auth: info,
+            llmClient,
+            messages: prepared.messages,
+            tools: prepared.tools,
+            toolChoice: input.toolChoice,
+            temperature: prepared.params.temperature,
+            topP: prepared.params.topP,
+            topK: prepared.params.topK,
+            maxOutputTokens: prepared.params.maxOutputTokens,
+            providerOptions: prepared.params.options,
+            headers: prepared.headers,
+            abort: input.abort,
+          }),
+        )
         if (native.type === "supported") {
           logModel("native")
           yield* Effect.logInfo("llm runtime selected", {
@@ -292,9 +294,9 @@ const live: Layer.Layer<
       // LLMAISDK.toLLMEvents below normalizes fullStream parts for the processor.
       // streamText starts the request before it returns, so the call context
       // set around it reaches the provider's fetch.
-      return {
+      return SessionLog.withCall(call, () => ({
         type: "ai-sdk" as const,
-        result: SessionLog.withCall(call, () => streamText({
+        result: streamText({
           onError(error) {
             bridge.fork(
               Effect.logError("stream error", {
@@ -367,8 +369,8 @@ const live: Layer.Layer<
               sessionId: input.sessionID,
             },
           },
-        })),
-      }
+        }),
+      }))
     })
 
     const stream: Interface["stream"] = (input) =>

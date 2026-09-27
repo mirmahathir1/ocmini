@@ -20,11 +20,31 @@ describe("session log scrubber", () => {
   ]).scrub
 
   const cases: Array<{ name: string; input: string; gone: string; kind: string }> = [
-    { name: "configured API key", input: 'Bearer zen-key-0123456789abcdef', gone: "zen-key-0123456789abcdef", kind: "api-key" },
-    { name: "env value by name", input: "echo tok_live_9f8e7d6c5b4a", gone: "tok_live_9f8e7d6c5b4a", kind: "env:MY_SERVICE_TOKEN" },
+    {
+      name: "configured API key",
+      input: "Bearer zen-key-0123456789abcdef",
+      gone: "zen-key-0123456789abcdef",
+      kind: "api-key",
+    },
+    {
+      name: "env value by name",
+      input: "echo tok_live_9f8e7d6c5b4a",
+      gone: "tok_live_9f8e7d6c5b4a",
+      kind: "env:MY_SERVICE_TOKEN",
+    },
     { name: "sk- key", input: "key is sk-proj-AbCdEf0123456789XyZ", gone: "sk-proj-AbCdEf0123456789XyZ", kind: "sk" },
-    { name: "GitHub token", input: "ghp_abcdefghijklmnopqrstuvwxyz0123456789", gone: "ghp_abcdefghijklmnopqrstuvwxyz0123456789", kind: "github" },
-    { name: "GitHub PAT", input: "github_pat_11ABCDEFG0123456789_abcdefghij", gone: "github_pat_11ABCDEFG0123456789_abcdefghij", kind: "github" },
+    {
+      name: "GitHub token",
+      input: "ghp_abcdefghijklmnopqrstuvwxyz0123456789",
+      gone: "ghp_abcdefghijklmnopqrstuvwxyz0123456789",
+      kind: "github",
+    },
+    {
+      name: "GitHub PAT",
+      input: "github_pat_11ABCDEFG0123456789_abcdefghij",
+      gone: "github_pat_11ABCDEFG0123456789_abcdefghij",
+      kind: "github",
+    },
     { name: "Slack token", input: "xoxb-1234567890-abcdefghij", gone: "xoxb-1234567890-abcdefghij", kind: "slack" },
     { name: "AWS access key", input: "AKIAIOSFODNN7EXAMPLE", gone: "AKIAIOSFODNN7EXAMPLE", kind: "aws" },
     {
@@ -45,10 +65,25 @@ describe("session log scrubber", () => {
       gone: "MIIEpAIBAAKCAQEA",
       kind: "private-key",
     },
-    { name: ".env line", input: "DATABASE_PASSWORD=hunter2hunter2\nPORT=3000", gone: "hunter2hunter2", kind: "assignment" },
-    { name: ".env line inside a JSON string", input: '"PORT=1\\nSTRIPE_SECRET_KEY=whsec_abcdef123456"', gone: "whsec_abcdef123456", kind: "assignment" },
+    {
+      name: ".env line",
+      input: "DATABASE_PASSWORD=hunter2hunter2\nPORT=3000",
+      gone: "hunter2hunter2",
+      kind: "assignment",
+    },
+    {
+      name: ".env line inside a JSON string",
+      input: '"PORT=1\\nSTRIPE_SECRET_KEY=whsec_abcdef123456"',
+      gone: "whsec_abcdef123456",
+      kind: "assignment",
+    },
     { name: "JSON pair", input: '{"apiKey": "plain-config-value-123"}', gone: "plain-config-value-123", kind: "json" },
-    { name: "query parameter", input: "GET https://x.test/v1?api_key=qwertyuiop123&x=1", gone: "qwertyuiop123", kind: "query" },
+    {
+      name: "query parameter",
+      input: "GET https://x.test/v1?api_key=qwertyuiop123&x=1",
+      gone: "qwertyuiop123",
+      kind: "query",
+    },
   ]
 
   for (const item of cases) {

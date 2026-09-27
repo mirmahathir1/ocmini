@@ -79,7 +79,12 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
         return run.promise(
           Effect.gen(function* () {
             const ctx = context(args, options)
-            const logged = SessionLog.tool({ sessionID: ctx.sessionID, callID: options.toolCallId, name: item.id, args })
+            const logged = SessionLog.tool({
+              sessionID: ctx.sessionID,
+              callID: options.toolCallId,
+              name: item.id,
+              args,
+            })
             const result = yield* item.execute(args, ctx).pipe(
               Effect.onExit((exit) =>
                 Effect.sync(() => {

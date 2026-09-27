@@ -111,10 +111,8 @@ export function create(initial: Secret[] = []) {
         shape.kind === "private-key" ? "[redacted:private-key]" : mask(value, shape.kind),
       )
     out = out.replace(QUERY, (_all, name: string, value: string) => name + mask(value, "query"))
-    out = out.replace(
-      ASSIGNMENT,
-      (all, lead: string, name: string, value: string) =>
-        value.startsWith("[redacted:") ? all : `${lead}${name}=${mask(value, "assignment")}`,
+    out = out.replace(ASSIGNMENT, (all, lead: string, name: string, value: string) =>
+      value.startsWith("[redacted:") ? all : `${lead}${name}=${mask(value, "assignment")}`,
     )
     out = out.replace(JSON_PAIR, (all, head: string, value: string, tail: string) =>
       value.startsWith("[redacted:") ? all : head + mask(value, "json") + tail,

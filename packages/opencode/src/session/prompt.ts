@@ -1013,7 +1013,10 @@ const layer = Layer.effect(
             lastFinished.summary !== true &&
             (yield* compaction.isOverflow({ tokens: lastFinished.tokens, model }))
           ) {
-            SessionLog.overflow(sessionID, { count: tokenCount(lastFinished.tokens), source: "found before the next turn" })
+            SessionLog.overflow(sessionID, {
+              count: tokenCount(lastFinished.tokens),
+              source: "found before the next turn",
+            })
             yield* compaction.create({ sessionID, agent: lastUser.agent, model: lastUser.model, auto: true })
             continue
           }

@@ -143,7 +143,9 @@ describe("session log", () => {
     call.end({ result: "continue" })
 
     const summary = await block("── RESPONSE #1 SUMMARY ──")
-    expect(summary.split("\n")[0]).toMatch(/RESPONSE #1 SUMMARY ── main · purpose build · finish tool-calls · continue$/)
+    expect(summary.split("\n")[0]).toMatch(
+      /RESPONSE #1 SUMMARY ── main · purpose build · finish tool-calls · continue$/,
+    )
     expect(summary).toContain("  text\n    pong")
     expect(summary).toContain('  tool calls\n    grep call_9 {"pattern":"x"}')
     expect(summary).toContain("usage       in 9,706 · cached 113 · out 65 (reasoning 54)")

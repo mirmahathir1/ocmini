@@ -109,12 +109,18 @@ it.instance(
       expect(decisions).toHaveLength(3)
       expect(decisions[0]).toMatch(/── PERMISSION ── main · read · allow\n  \/work\/a\.ts → allow \(rule: read \*\)$/)
       expect(decisions[1]).toMatch(/── PERMISSION ── main · bash · deny\n  rm -rf \/ → deny \(rule: bash rm \*\)$/)
-      expect(decisions[2]).toMatch(/── PERMISSION ── main · edit · call_7 · ask\n  \/work\/b\.ts → ask \(no rule matched; default\)\n/)
+      expect(decisions[2]).toMatch(
+        /── PERMISSION ── main · edit · call_7 · ask\n  \/work\/b\.ts → ask \(no rule matched; default\)\n/,
+      )
       // The user is shown the diff; the log shows it too, in full.
-      expect(decisions[2]).toContain("  metadata\n    diff:\n      --- a/b.ts\n      +++ b/b.ts\n      -old\n      +new")
+      expect(decisions[2]).toContain(
+        "  metadata\n    diff:\n      --- a/b.ts\n      +++ b/b.ts\n      -old\n      +new",
+      )
 
       const [replied] = blocks("── PERMISSION REPLY ──")
-      expect(replied).toMatch(/── PERMISSION REPLY ── main · edit · reject\n  request     per\w+\n  waited      \d+ms\n  feedback\n    edit c\.ts instead$/)
+      expect(replied).toMatch(
+        /── PERMISSION REPLY ── main · edit · reject\n  request     per\w+\n  waited      \d+ms\n  feedback\n    edit c\.ts instead$/,
+      )
     }),
   { git: true },
 )
@@ -156,7 +162,9 @@ it.instance(
       )
       // The second session in this log is main#2.
       expect(asked[0]).toMatch(/── QUESTION #1 ── main#2 · question 1 this session/)
-      expect(blocks("── QUESTION #1 ANSWER ──")[0]).toMatch(/waited \d+ms\n  request     que\w+\n  1\. "SQLite \(Recommended\)"$/)
+      expect(blocks("── QUESTION #1 ANSWER ──")[0]).toMatch(
+        /waited \d+ms\n  request     que\w+\n  1\. "SQLite \(Recommended\)"$/,
+      )
       expect(blocks("── QUESTION #2 DISMISSED ──")).toHaveLength(1)
     }),
   { git: true },
