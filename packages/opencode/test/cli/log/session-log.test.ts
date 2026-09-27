@@ -1,9 +1,10 @@
 // The --log-dir flag and the per-session log file, end to end through the real
 // CLI (plan.md, step 1). The blocks written between header and footer are
 // covered by the tests next to each hook.
-import { describe, expect } from "bun:test"
+import { describe, expect, test } from "bun:test"
 import { Effect } from "effect"
 import fs from "fs"
+import os from "os"
 import path from "path"
 import { cliIt, testModelID } from "../../lib/cli-process"
 
@@ -282,4 +283,64 @@ describe("session log contents", () => {
       }),
     60_000,
   )
+
+  cliIt.live(
+    "still writes the footer when the run is interrupted, with the call in flight",
+    ({ llm, opencode, logDir }) =>
+      Effect.gen(function* () {
+        yield* llm.hang
+        const run = yield* opencode.startRun("wait forever")
+        yield* llm.wait(2) // the title call and the agent turn
+        yield* Effect.sleep("300 millis")
+        run.interrupt()
+        const result = yield* run.result
+        expect(result.exitCode).not.toBe(0)
+
+        const log = latest(logDir)
+        expect(log).toMatch(/── REQUEST #\d+ ── main · turn 1 · purpose build\n/)
+        // The streaming response was cut off; what had arrived is kept.
+        expect(log).toMatch(
+          /── RESPONSE #\d+ ── main · turn 1 · 200[^\n]*\n(?:.*\n)*?  unfinished after [\d.]+m?s · \d+ bytes/,
+        )
+        expect(log).toMatch(/\n  exit        aborted by SIGINT   wall /)
+      }),
+    30_000,
+  )
+})
+
+// A crash can't be provoked through the CLI on purpose, so these start a log
+// the way the CLI does and then die. The footer must still be written, and the
+// runtime's own handling of the crash must be unchanged: the process exits 1.
+describe("session log on a crash", () => {
+  const crash = async (how: string) => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "oc-log-crash-"))
+    try {
+      const script = [
+        `import { SessionLog } from ${JSON.stringify(path.join(import.meta.dir, "../../../src/session/log"))}`,
+        `SessionLog.start({ dir: ${JSON.stringify(dir)}, argv: [] })`,
+        how,
+      ].join("\n")
+      const proc = Bun.spawn(["bun", "-e", script], { stdout: "pipe", stderr: "pipe" })
+      const [stderr] = await Promise.all([new Response(proc.stderr).text(), new Response(proc.stdout).text()])
+      return { code: await proc.exited, stderr, log: fs.readFileSync(path.join(dir, "latest.log"), "utf8") }
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true })
+    }
+  }
+
+  test("an uncaught exception", async () => {
+    const result = await crash(`setTimeout(() => { throw new Error("boom from a timer") }, 1)`)
+    expect(result.code).toBe(1)
+    expect(result.stderr).toContain("boom from a timer")
+    expect(result.log).toMatch(/── ERROR ── uncaught exception\n  Error: boom from a timer\n/)
+    expect(result.log).toMatch(/\n  exit        crashed: uncaught exception \(1\)   wall /)
+  })
+
+  test("an unhandled rejection", async () => {
+    const result = await crash(`Promise.reject(new Error("nobody caught this"))`)
+    expect(result.code).toBe(1)
+    expect(result.stderr).toContain("nobody caught this")
+    expect(result.log).toMatch(/── ERROR ── unhandled rejection\n  Error: nobody caught this\n/)
+    expect(result.log).toMatch(/\n  exit        crashed: unhandled rejection \(1\)   wall /)
+  })
 })

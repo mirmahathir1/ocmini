@@ -344,8 +344,12 @@ export function start(input: { dir: string; argv?: string[] }) {
 }
 
 function watch() {
+  // A rejection rethrown below surfaces again as an uncaught exception; it is
+  // already logged, under its real name.
+  let rethrown: unknown
   process.on("exit", (code) => end(code))
   process.on("uncaughtExceptionMonitor", (error) => {
+    if (rethrown !== undefined && error === rethrown) return
     fatal = "uncaught exception"
     error_("uncaught exception", error)
   })
@@ -355,6 +359,7 @@ function watch() {
     if (process.listenerCount("unhandledRejection") === 1) {
       process.off("unhandledRejection", onRejection)
       fatal = "unhandled rejection"
+      rethrown = reason
       throw reason
     }
   }
