@@ -4,6 +4,7 @@ import { InstanceState } from "@/effect/instance-state"
 import { SessionID } from "@/session/schema"
 import { QuestionID } from "./schema"
 import { EventV2Bridge } from "@/event-v2-bridge"
+import { SessionLog } from "@/session/log"
 import { QuestionV1 } from "@opencode-ai/schema/question-v1"
 
 export const Option = QuestionV1.Option
@@ -101,6 +102,7 @@ const layer = Layer.effect(
         tool: input.tool,
       }
       pending.set(id, { info, deferred })
+      SessionLog.questionAsk({ id, sessionID: input.sessionID, questions: input.questions, callID: input.tool?.callID })
       yield* events.publish(Event.Asked, info)
 
       return yield* Effect.ensuring(
@@ -122,6 +124,7 @@ const layer = Layer.effect(
         return yield* new NotFoundError({ requestID: input.requestID })
       }
       pending.delete(input.requestID)
+      SessionLog.questionReply({ id: input.requestID, answers: input.answers })
       yield* Effect.logInfo("replied", { requestID: input.requestID, answers: input.answers })
       yield* events.publish(Event.Replied, {
         sessionID: existing.info.sessionID,
@@ -139,6 +142,7 @@ const layer = Layer.effect(
         return yield* new NotFoundError({ requestID })
       }
       pending.delete(requestID)
+      SessionLog.questionReject({ id: requestID })
       yield* Effect.logInfo("rejected", { requestID })
       yield* events.publish(Event.Rejected, {
         sessionID: existing.info.sessionID,

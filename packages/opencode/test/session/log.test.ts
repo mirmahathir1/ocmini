@@ -150,7 +150,8 @@ describe("session log", () => {
     expect(SessionLog.stats().tokens).toEqual({ input: 9706, cached: 113, output: 65, reasoning: 54 })
   })
 
-  // Last: a broken log stays off for the rest of the process.
+  // A broken log stays off; state is per file, so this can't leak into
+  // other tests that point the log elsewhere.
   test("a failed write disables the log with one warning instead of throwing", async () => {
     const original = process.stderr.write.bind(process.stderr)
     const warnings: string[] = []
@@ -158,16 +159,18 @@ describe("session log", () => {
       warnings.push(String(chunk))
       return true
     }) as typeof process.stderr.write
+    let enabled: boolean
     try {
       process.env.OCMINI_SESSION_LOG = dir // a directory: opening it for append fails
       SessionLog.config("first")
       SessionLog.config("second")
+      enabled = SessionLog.enabled()
     } finally {
       process.stderr.write = original
       process.env.OCMINI_SESSION_LOG = file
     }
     expect(warnings).toHaveLength(1)
     expect(warnings[0]).toContain("session log disabled")
-    expect(SessionLog.enabled()).toBe(false)
+    expect(enabled).toBe(false)
   })
 })

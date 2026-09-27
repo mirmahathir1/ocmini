@@ -6,6 +6,7 @@ import { Deferred, Effect, Layer, Context } from "effect"
 import os from "os"
 import { PermissionV1 } from "@opencode-ai/core/v1/permission"
 import { EventV2Bridge } from "@/event-v2-bridge"
+import { SessionLog } from "@/session/log"
 
 export const Event = PermissionV1.Event
 
@@ -68,11 +69,24 @@ const layer = Layer.effect(
       const { approved, pending } = yield* InstanceState.get(state)
       const { ruleset, ...request } = input
       let needsAsk = false
+      const checks: SessionLog.PermissionCheck[] = []
+      const logged = (outcome: "allow" | "deny" | "ask", requestID?: string) =>
+        SessionLog.permission({
+          sessionID: request.sessionID,
+          permission: request.permission,
+          callID: request.tool?.callID,
+          checks,
+          outcome,
+          requestID,
+          metadata: request.metadata,
+        })
 
       for (const pattern of request.patterns) {
         const rule = evaluate(request.permission, pattern, ruleset, approved)
+        checks.push({ pattern, rule, matched: ruleset.includes(rule) || approved.includes(rule) })
         yield* Effect.logInfo("evaluated", { permission: request.permission, pattern, action: rule })
         if (rule.action === "deny") {
+          logged("deny")
           return yield* new PermissionV1.DeniedError({
             ruleset: ruleset.filter((rule) => Wildcard.match(request.permission, rule.permission)),
           })
@@ -81,9 +95,10 @@ const layer = Layer.effect(
         needsAsk = true
       }
 
-      if (!needsAsk) return
+      if (!needsAsk) return logged("allow")
 
       const id = request.id ?? PermissionV1.ID.ascending()
+      logged("ask", id)
       const info: PermissionV1.Request = {
         id,
         sessionID: request.sessionID,
@@ -112,6 +127,12 @@ const layer = Layer.effect(
       if (!existing) return yield* new PermissionV1.NotFoundError({ requestID: input.requestID })
 
       pending.delete(input.requestID)
+      SessionLog.permissionReply({
+        requestID: input.requestID,
+        sessionID: existing.info.sessionID,
+        reply: input.reply,
+        message: input.message,
+      })
       yield* events.publish(Event.Replied, {
         sessionID: existing.info.sessionID,
         requestID: existing.info.id,
@@ -129,6 +150,7 @@ const layer = Layer.effect(
         for (const [id, item] of pending.entries()) {
           if (item.info.sessionID !== existing.info.sessionID) continue
           pending.delete(id)
+          SessionLog.permissionReply({ requestID: id, sessionID: item.info.sessionID, reply: "reject", cascade: true })
           yield* events.publish(Event.Replied, {
             sessionID: item.info.sessionID,
             requestID: item.info.id,
@@ -157,6 +179,7 @@ const layer = Layer.effect(
         )
         if (!ok) continue
         pending.delete(id)
+        SessionLog.permissionReply({ requestID: id, sessionID: item.info.sessionID, reply: "always", cascade: true })
         yield* events.publish(Event.Replied, {
           sessionID: item.info.sessionID,
           requestID: item.info.id,

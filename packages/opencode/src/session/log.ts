@@ -55,7 +55,7 @@ type Scope = { label: string; turn: number; turns: number; tokens: Tokens }
 
 const emptyTokens = (): Tokens => ({ input: 0, cached: 0, output: 0, reasoning: 0 })
 
-const totals: Stats = {
+const emptyStats = (): Stats => ({
   turns: 0,
   requests: 0,
   aux: 0,
@@ -70,8 +70,9 @@ const totals: Stats = {
   waitUser: 0,
   waitRate: 0,
   errors: 0,
-}
+})
 
+const totals = emptyStats()
 const scrubber = LogScrub.create(LogScrub.fromEnv(process.env))
 const scopes = new Map<string, Scope>()
 const counters = { request: 0, tool: 0, question: 0, root: 0, sub: 0 }
@@ -89,7 +90,30 @@ let signal: string | undefined
 // File and formatting
 
 export function enabled() {
+  sync()
   return !broken && !ended && !handedOff && !!process.env[FILE_ENV] && process.env[PID_ENV] === String(process.pid)
+}
+
+// Everything above (and the maps further down) belongs to one log file. A real
+// run never changes the file; when the path does change — tests pointing at a
+// fresh file — the state starts clean rather than carrying another log's
+// numbering, totals or failure.
+let statePath: string | undefined
+function sync() {
+  const target = process.env[FILE_ENV]
+  if (target === statePath) return
+  statePath = target
+  Object.assign(totals, emptyStats())
+  Object.assign(counters, { request: 0, tool: 0, question: 0, root: 0, sub: 0 })
+  for (const map of [scopes, seen, lastRequest, pending, asked, questions] as Array<Map<unknown, unknown>>) map.clear()
+  broken = ended = handedOff = false
+  fatal = signal = undefined
+  if (fd !== undefined) {
+    try {
+      fs.closeSync(fd)
+    } catch {}
+  }
+  fd = fdPath = undefined
 }
 
 export function file() {
@@ -187,7 +211,10 @@ function block(kind: string, meta: Array<string | number | false | undefined>, b
   const now = Date.now()
   const extra = meta.filter((item) => item !== undefined && item !== false && item !== "").join(" · ")
   const head = `[${clock(now)} +${((now - origin()) / 1000).toFixed(3)}s] ── ${kind} ──${extra ? " " + extra : ""}`
-  write("\n" + [head, ...body.map((line) => "  " + line)].join("\n") + "\n")
+  // A body entry may itself hold newlines (a stack in a field, say); every
+  // physical line gets the indent, so nothing escapes its block.
+  const lines = body.flatMap((line) => line.split("\n"))
+  write("\n" + [head, ...lines.map((line) => "  " + line)].join("\n") + "\n")
 }
 
 function scope(sessionID: string | undefined): Scope | undefined {
@@ -256,10 +283,10 @@ export function start(input: { dir: string; argv?: string[] }) {
   const now = Date.now()
   const name = `${stamp(now)}-${process.pid}.log`
   const target = path.join(dir, name)
+  let opened: number
   try {
     fs.mkdirSync(dir, { recursive: true })
-    fd = fs.openSync(target, "wx")
-    fdPath = target
+    opened = fs.openSync(target, "wx")
   } catch (error) {
     throw new StartError(`cannot write session logs to ${dir}: ${message(error)}`)
   }
@@ -275,8 +302,9 @@ export function start(input: { dir: string; argv?: string[] }) {
   process.env[FILE_ENV] = target
   process.env[START_ENV] = String(now)
   process.env[PID_ENV] = String(process.pid)
-  broken = false
-  ended = false
+  sync()
+  fd = opened
+  fdPath = target
 
   const argv = input.argv ?? process.argv.slice(2)
   const auto = argv.find((arg) => ["--auto", "--yolo", "--dangerously-skip-permissions"].includes(arg))
@@ -630,7 +658,7 @@ export async function tap(
     res = await send()
   } catch (error) {
     block(`RESPONSE #${n}`, [label, turn, "no response", `after ${secs(Date.now() - started)}`], [
-      field("error", describe(error)),
+      ...section("error", describe(error)),
     ])
     throw error
   }
@@ -855,17 +883,18 @@ Logging.forward((level, line) => {
 // ---------------------------------------------------------------------------
 // Tools, permissions, questions, sub-agents
 
-function metadataLines(metadata: Record<string, unknown> | undefined) {
+function metadataLines(metadata: Record<string, unknown> | undefined, limit = 1000) {
   if (!metadata) return []
   const entries = Object.entries(metadata).filter(([key]) => key !== "truncated" && key !== "outputPath")
   if (!entries.length) return []
   return [
     "metadata",
-    ...entries.map(([key, value]) => {
+    ...entries.flatMap(([key, value]) => {
       const text = typeof value === "string" ? value : (JSON.stringify(value) ?? String(value))
       // Before/after file contents and diffs can be whole files; the output
-      // above is what the model saw, so metadata is shown as a pointer.
-      return `  ${key}: ${text.length > 1000 ? `(${num(text.length)} chars)` : text}`
+      // above is what the model saw, so long metadata is shown by size only.
+      if (text.length > limit) return [`  ${key}: (${num(text.length)} chars)`]
+      return text.includes("\n") ? [`  ${key}:`, ...indent(text, 4)] : [`  ${key}: ${text}`]
     }),
   ]
 }
@@ -911,11 +940,13 @@ export function tool(input: { sessionID: string; callID: string; name: string; a
 type Asked = { sessionID: string; at: number; label: string }
 const asked = new Map<string, Asked>()
 
+export type PermissionCheck = { pattern: string; rule: Rule; matched: boolean }
+
 export function permission(input: {
   sessionID: string
   permission: string
   callID?: string
-  checks: Array<{ pattern: string; rule: Rule; matched: boolean }>
+  checks: PermissionCheck[]
   outcome: "allow" | "deny" | "ask"
   requestID?: string
   metadata?: Record<string, unknown>
@@ -931,7 +962,9 @@ export function permission(input: {
         (check.matched ? `(rule: ${check.rule.permission} ${check.rule.pattern})` : "(no rule matched; default)"),
     ),
     ...(input.outcome === "ask" ? [field("asked", `request ${input.requestID}, waiting for a reply`)] : []),
-    ...(input.outcome === "ask" && input.metadata ? metadataLines(input.metadata) : []),
+    // What the user is shown (the command, the diff) — in full, since this is
+    // what they are deciding on.
+    ...(input.outcome === "ask" && input.metadata ? metadataLines(input.metadata, Infinity) : []),
   ])
 }
 

@@ -145,4 +145,45 @@ describe("session log contents", () => {
       }),
     60_000,
   )
+
+  cliIt.concurrent(
+    "records a tool call, its permission check and the output the model saw",
+    ({ llm, opencode, logDir }) =>
+      Effect.gen(function* () {
+        yield* llm.tool("bash", { command: "printf tool-output", description: "Print deterministic output" })
+        yield* llm.text("done")
+        const result = yield* opencode.run("use a tool", { extraArgs: ["--dangerously-skip-permissions"] })
+        opencode.expectExit(result, 0)
+
+        const log = latest(logDir)
+        expect(log).toMatch(/── TOOL #1 ── main · turn 1 · bash call_1\n  args\n    \{\n      "command": "printf tool-output",/)
+        expect(log).toMatch(/── PERMISSION ── main · turn 1 · bash · call_1 · (?:ask|allow)\n  printf tool-output → /)
+        expect(log).toMatch(/── TOOL #1 END ── main · turn 1 · bash call_1 · ok · [\d.]+m?s\n(?:.*\n)*?  output\n    tool-output\n/)
+        expect(log).toMatch(/── RESPONSE #\d+ SUMMARY ── main · turn 1 · purpose build · finish tool-calls/)
+        expect(log).toContain('  tool calls\n    bash call_1 {"command":"printf tool-output"')
+        expect(log).toMatch(/── TURN 2 ── main · agent build/)
+        expect(log).toMatch(/\n  tools       bash 1\n/)
+      }),
+    60_000,
+  )
+
+  cliIt.concurrent(
+    "records a permission the run refused and the tool call it failed",
+    ({ llm, opencode, logDir }) =>
+      Effect.gen(function* () {
+        // Harmless even if it ran: the run's directory is the test runner's.
+        yield* llm.tool("bash", { command: "printf refused", description: "Print" })
+        yield* llm.text("ok")
+        // Non-interactive run without --auto rejects anything that asks.
+        yield* opencode.run("try a tool", { timeoutMs: 30_000, permission: { bash: "ask" } })
+
+        const log = latest(logDir)
+        expect(log).toMatch(/── PERMISSION ── main · turn 1 · bash · call_1 · ask\n  printf refused → ask \(rule: bash \*\)/)
+        expect(log).toMatch(/── PERMISSION REPLY ── main · turn 1 · bash · reject\n/)
+        expect(log).toMatch(/── TOOL #1 END ── main · turn 1 · bash call_1 · error · /)
+        expect(log).toMatch(/\n  tools       bash 1   \(errors 1\)\n/)
+        expect(log).toMatch(/denials 1 /)
+      }),
+    60_000,
+  )
 })

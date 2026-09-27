@@ -9,10 +9,11 @@ import { ToolRegistry } from "@/tool/registry"
 
 import type { TaskPromptOps } from "@/tool/task"
 import { type Tool as AITool, tool, jsonSchema, type ToolExecutionOptions } from "ai"
-import { Effect } from "effect"
+import { Cause, Effect, Exit } from "effect"
 import { Session } from "./session"
 import { SessionProcessor } from "./processor"
 import { PartID } from "./schema"
+import { SessionLog } from "./log"
 import { EffectBridge } from "@/effect/bridge"
 import { ModelV2 } from "@opencode-ai/core/model"
 
@@ -78,7 +79,17 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
         return run.promise(
           Effect.gen(function* () {
             const ctx = context(args, options)
-            const result = yield* item.execute(args, ctx)
+            const logged = SessionLog.tool({ sessionID: ctx.sessionID, callID: options.toolCallId, name: item.id, args })
+            const result = yield* item.execute(args, ctx).pipe(
+              Effect.onExit((exit) =>
+                Effect.sync(() => {
+                  if (Exit.isSuccess(exit)) return logged.end(exit.value)
+                  if (Cause.hasInterruptsOnly(exit.cause))
+                    return logged.fail(Object.assign(new Error("Tool execution aborted"), { name: "AbortError" }))
+                  logged.fail(Cause.squash(exit.cause))
+                }),
+              ),
+            )
             const output = {
               ...result,
               attachments: result.attachments?.map((attachment) => ({
