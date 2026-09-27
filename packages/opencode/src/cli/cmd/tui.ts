@@ -14,6 +14,7 @@ import { writeHeapSnapshot } from "v8"
 import { ServerAuth } from "@/server/auth"
 import { validateSession } from "../tui/validate-session"
 import { win32InstallCtrlCGuard } from "../terminal-win32"
+import { SessionLog } from "@/session/log"
 
 declare global {
   const OPENCODE_WORKER_PATH: string
@@ -217,7 +218,7 @@ export const TuiThreadCommand = cmd({
         if (stopped) return
         stopped = true
         process.off("SIGUSR2", reload)
-        await withTimeout(client.call("shutdown", undefined), 5000).catch(() => {})
+        SessionLog.absorb(await withTimeout(client.call("shutdown", undefined), 5000).catch(() => undefined))
         worker.terminate()
       }
 

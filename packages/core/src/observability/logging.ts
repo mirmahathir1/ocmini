@@ -53,6 +53,20 @@ export function fileLogger(file = path.join(Global.Path.log, "opencode.log"), id
 
 const stderrLogger = Logger.make((options) => process.stderr.write(formatter().log(options) + "\n"))
 
+// Warnings and errors are also handed to whoever registered here — the session
+// log, which wants internal problems next to the requests that caused them.
+const forwarded = new Set<LogLevel.LogLevel>(["Fatal", "Error", "Warn"])
+let sink: ((level: string, line: string) => void) | undefined
+
+export function forward(fn: (level: string, line: string) => void) {
+  sink = fn
+}
+
+const forwardLogger = Logger.make((options) => {
+  if (!sink || !forwarded.has(options.logLevel)) return
+  sink(options.logLevel, formatter().log(options))
+})
+
 export function minimumLogLevel() {
   const value = process.env.OPENCODE_LOG_LEVEL?.toUpperCase()
   const levels = {
@@ -65,7 +79,9 @@ export function minimumLogLevel() {
 }
 
 export function loggers() {
-  return process.env.OPENCODE_PRINT_LOGS === "1" ? [fileLogger(), stderrLogger] : [fileLogger()]
+  return process.env.OPENCODE_PRINT_LOGS === "1"
+    ? [fileLogger(), stderrLogger, forwardLogger]
+    : [fileLogger(), forwardLogger]
 }
 
 export * as Logging from "./logging"

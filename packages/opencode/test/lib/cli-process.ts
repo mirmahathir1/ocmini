@@ -155,6 +155,9 @@ export type OpencodeCli = {
 export type CliFixture = {
   readonly llm: TestLLMServer["Service"]
   readonly home: string
+  // The --log-dir every `run`, `startRun` and `serve` is given. `spawn` is the
+  // escape hatch and gets nothing added; pass it yourself when needed.
+  readonly logDir: string
   readonly opencode: OpencodeCli
 }
 
@@ -179,6 +182,7 @@ export function withCliFixture<A, E>(
 
     const configJson = JSON.stringify(testProviderConfig(llm.url))
     const env = isolatedEnv(home, configJson)
+    const logDir = path.join(home, "logs")
 
     const spawn = Effect.fn("opencode.spawn")(function* (args: string[], opts?: SpawnOpts) {
       const start = Date.now()
@@ -225,7 +229,7 @@ export function withCliFixture<A, E>(
     })
 
     const runArgs = (message: string, opts?: RunOpts) => {
-      const argv: string[] = ["run"]
+      const argv: string[] = ["run", "--log-dir", logDir]
       if (opts?.printLogs) argv.push("--print-logs")
       argv.push("--model", opts?.model ?? testModelID)
       if (opts?.agent) argv.push("--agent", opts.agent)
@@ -288,7 +292,7 @@ export function withCliFixture<A, E>(
     })
 
     const serve = Effect.fn("opencode.serve")(function* (opts?: ServeOpts) {
-      const argv = ["serve"]
+      const argv = ["serve", "--log-dir", logDir]
       // Default port 0 — let the OS pick a free port, parse the actual one
       // off stdout. Hard-coded ports flake under parallel tests.
       argv.push("--port", String(opts?.port ?? 0))
@@ -364,7 +368,7 @@ export function withCliFixture<A, E>(
 
     const opencode: OpencodeCli = { run, startRun, serve, spawn, expectExit, parseJsonEvents }
 
-    return yield* fn({ llm, home, opencode })
+    return yield* fn({ llm, home, logDir, opencode })
     // FetchHttpClient is provided so test bodies can `yield* HttpClient.HttpClient`
     // and hit endpoints on `opencode.serve()` without rolling their own fetch.
   }).pipe(

@@ -104,7 +104,16 @@ describe(`wire parity with upstream opencode (${MODEL_ID})`, () => {
 
       try {
         const proc = Bun.spawn(
-          ["bun", path.join(ROOT, "src/index.ts"), "run", "--model", `opencode/${MODEL_ID}`, PROMPT],
+          [
+            "bun",
+            path.join(ROOT, "src/index.ts"),
+            "run",
+            "--log-dir",
+            path.join(home, "logs"),
+            "--model",
+            `opencode/${MODEL_ID}`,
+            PROMPT,
+          ],
           { cwd, env: isolatedEnv(home, server.url.origin + "/v1"), stdout: "pipe", stderr: "pipe" },
         )
         const [stdout, stderr] = await Promise.all([

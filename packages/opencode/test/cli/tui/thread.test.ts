@@ -71,18 +71,18 @@ describe("tui thread", () => {
     expect(args.mdns).toBe(false)
   })
 
-  cliIt.live("rejects mini-only options without --mini", ({ opencode }) =>
+  cliIt.live("rejects mini-only options without --mini", ({ opencode, logDir }) =>
     Effect.gen(function* () {
-      const result = yield* opencode.spawn(["--replay-limit", "10"])
+      const result = yield* opencode.spawn(["--log-dir", logDir, "--replay-limit", "10"])
 
       opencode.expectExit(result, 1)
       expect(result.stderr).toContain("--replay-limit requires --mini")
     }),
   )
 
-  cliIt.live("rejects network options in mini mode", ({ opencode }) =>
+  cliIt.live("rejects network options in mini mode", ({ opencode, logDir }) =>
     Effect.gen(function* () {
-      const result = yield* opencode.spawn(["--mini", "--port", "4096"])
+      const result = yield* opencode.spawn(["--log-dir", logDir, "--mini", "--port", "4096"])
 
       opencode.expectExit(result, 1)
       expect(result.stderr).toContain("--port cannot be used with --mini")

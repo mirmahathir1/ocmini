@@ -10,8 +10,17 @@ import { TuiThreadCommand } from "./cli/cmd/tui"
 import { EOL } from "os"
 import { errorMessage } from "./util/error"
 import { Heap } from "./cli/heap"
+import { SessionLog } from "./session/log"
 
 const args = hideBin(process.argv)
+
+// Commands that can start a session, and so must be told where to log it.
+// The default (TUI) command has no name.
+const SESSION_COMMANDS = new Set(["", "run", "serve"])
+
+function cliError(message: string) {
+  return Object.assign(new Error(message), { _tag: "CliError", exitCode: 1 })
+}
 
 function show(out: string) {
   const text = out.trimStart()
@@ -44,7 +53,30 @@ const cli = yargs(args)
     describe: "run without external plugins",
     type: "boolean",
   })
+  .option("log-dir", {
+    describe: "folder for this session's log file (required to start a session)",
+    type: "string",
+  })
   .middleware(async (opts) => {
+    // Help for the default command still runs middleware; it starts no session.
+    const help = args.includes("-h") || args.includes("--help")
+    if (!help && SESSION_COMMANDS.has(String(opts._[0] ?? ""))) {
+      if (!opts.logDir)
+        throw cliError(
+          [
+            "--log-dir is required",
+            "",
+            "Every session writes a log file to a folder you choose, for example:",
+            "  --log-dir ~/ocmini-logs",
+          ].join("\n"),
+        )
+      try {
+        SessionLog.start({ dir: opts.logDir, argv: args })
+      } catch (error) {
+        throw cliError(errorMessage(error))
+      }
+    }
+
     if (opts.printLogs) process.env.OPENCODE_PRINT_LOGS = "1"
     if (opts.logLevel) process.env.OPENCODE_LOG_LEVEL = opts.logLevel
     if (opts.pure) {
@@ -88,6 +120,7 @@ try {
     await cli.parse()
   }
 } catch (e) {
+  SessionLog.error("ocmini exited with an error", e)
   const formatted = FormatError(e)
   if (formatted) UI.error(formatted)
   if (formatted === undefined) {

@@ -9,12 +9,17 @@ import { Heap } from "@/cli/heap"
 import { AppRuntime } from "@/effect/app-runtime"
 import { Effect } from "effect"
 import { disposeAllInstancesAndEmitGlobalDisposed } from "@/server/global-lifecycle"
+import { SessionLog } from "@/session/log"
 
 Heap.start()
 
-const onUnhandledRejection = (_error: unknown) => {}
+const onUnhandledRejection = (error: unknown) => {
+  SessionLog.error("unhandled rejection in the TUI worker", error)
+}
 
-const onUncaughtException = (_error: Error) => {}
+const onUncaughtException = (error: Error) => {
+  SessionLog.error("uncaught exception in the TUI worker", error)
+}
 
 process.on("unhandledRejection", onUnhandledRejection)
 process.on("uncaughtException", onUncaughtException)
@@ -69,6 +74,9 @@ export const rpc = {
     if (server) await server.stop(true)
     process.off("unhandledRejection", onUnhandledRejection)
     process.off("uncaughtException", onUncaughtException)
+    // The session ran on this thread; its totals go to the main thread, which
+    // writes the footer when the process exits.
+    return SessionLog.handoff()
   },
 }
 
