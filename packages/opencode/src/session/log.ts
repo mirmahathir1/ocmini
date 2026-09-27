@@ -501,7 +501,7 @@ export function model(
     runtime: string
     fallback?: string
     maxOutput?: number
-    reasoning?: unknown
+    options?: Record<string, unknown>
     small?: boolean
   },
 ) {
@@ -511,7 +511,9 @@ export function model(
     field("model", `${info.providerID}/${info.modelID}   ${free}`),
     field("base url", info.baseURL ?? "(provider default)"),
     field("runtime", info.runtime + (info.fallback ? ` (native unavailable: ${info.fallback})` : "")),
-    field("reasoning", info.reasoning === undefined ? "(provider default)" : JSON.stringify(info.reasoning)),
+    // Reasoning effort, store and include live here; store/include decide how
+    // reasoning carries across turns (ocmini-spec.md §3).
+    field("options", info.options && Object.keys(info.options).length ? JSON.stringify(info.options) : "(none)"),
     field("max output", info.maxOutput === undefined ? "(provider default)" : num(info.maxOutput)),
     ...(info.small ? [field("small", "yes")] : []),
   ])
@@ -550,9 +552,13 @@ const AUX = new Set(["title", "compaction", "summary"])
 
 // Runs `fn` with the session and purpose attached, so the fetch hook — which
 // sees only a URL and a body — can say who made the request.
-export function withCall<T>(call: Call, fn: () => T): T {
-  if (!enabled()) return fn()
+export function withCall<T>(call: Call | undefined, fn: () => T): T {
+  if (!call || !enabled()) return fn()
   return calls.run(call, fn)
+}
+
+export function currentCall(): Call | undefined {
+  return calls.getStore()
 }
 
 type Pending = {

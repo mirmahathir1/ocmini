@@ -166,4 +166,86 @@ describe(`wire parity with upstream opencode (${MODEL_ID})`, () => {
     },
     180_000,
   )
+
+  // plan.md step 2: the same exchange, seen through the session log. The log
+  // taps the fetch the SDK uses, so this also re-proves the tap is read-only:
+  // the request that reaches the stand-in server is compared exactly as above.
+  test(
+    "the session log records the exchange raw, with secrets scrubbed",
+    async () => {
+      const planted = "ghp_" + "Zq7".repeat(12)
+      const replay = await Bun.file(path.join(import.meta.dir, "fixtures/muse-spark-response.txt")).text()
+      const bodies: any[] = []
+      const server = Bun.serve({
+        port: 0,
+        idleTimeout: 120,
+        async fetch(req) {
+          bodies.push(await req.json().catch(() => undefined))
+          return new Response(replay, { headers: { "content-type": "text/event-stream" } })
+        },
+      })
+
+      const home = await fs.mkdtemp(path.join(os.tmpdir(), "oc-parity-log-"))
+      const cwd = path.join(home, "project")
+      const logDir = path.join(home, "logs")
+      await fs.mkdir(cwd, { recursive: true })
+
+      try {
+        const proc = Bun.spawn(
+          [
+            "bun",
+            path.join(ROOT, "src/index.ts"),
+            "run",
+            "--log-dir",
+            logDir,
+            "--model",
+            `opencode/${MODEL_ID}`,
+            `${PROMPT} (ignore this: ${planted})`,
+          ],
+          { cwd, env: isolatedEnv(home, server.url.origin + "/v1"), stdout: "pipe", stderr: "pipe" },
+        )
+        const [stdout, stderr] = await Promise.all([
+          new Response(proc.stdout).text(),
+          new Response(proc.stderr).text(),
+        ])
+        expect(await proc.exited, `stdout: ${stdout}\nstderr: ${stderr}`).toBe(0)
+
+        const turn = bodies.find((body) => body?.model === MODEL_ID && Array.isArray(body?.tools))
+        expect(turn, "no agent turn reached the stand-in server").toBeDefined()
+        // What went over the wire still carries the planted secret; only the
+        // log's copy is scrubbed.
+        expect(JSON.stringify(turn)).toContain(planted)
+        expect(turn.tools).toEqual(fixture.tools)
+
+        const log = await fs.readFile(path.join(logDir, "latest.log"), "utf8")
+        expect(log).not.toContain(planted)
+        expect(log).not.toContain("parity-fixture-key")
+        expect(log).toContain("authorization: Bearer [redacted:")
+
+        // The agent turn's request, tagged with who made it.
+        expect(log).toMatch(/── REQUEST #\d+ ── main(?: · turn \d+)? · purpose build\n  POST .*\/v1\/responses/)
+        expect(log).toContain(`"model": "${MODEL_ID}"`)
+        // The title call is logged too, as an auxiliary request.
+        expect(log).toMatch(/── REQUEST #\d+ ── main(?: · turn \d+)? · purpose title\n/)
+        expect(log).toMatch(/── MODEL ── main · agent build\n  model       opencode\/muse-spark-1\.3-contributor-free   ✓ contributor-free/)
+
+        // Every event zen sent, in order, exactly as it arrived.
+        const sent = replay.split("\n").filter((line) => line.startsWith("event:") || line.startsWith("data:"))
+        const response = log
+          .split("\n\n")
+          .find((item) => /── RESPONSE #\d+ ── main(?: · turn \d+)? · 200/.test(item) && item.includes("response.completed"))
+        expect(response, "no streamed RESPONSE block").toBeDefined()
+        const logged = response!
+          .split("\n")
+          .filter((line) => /^ {4}\+\d+\.\d{3} /.test(line))
+          .map((line) => line.replace(/^ {4}\+\d+\.\d{3} /, ""))
+        expect(logged).toEqual(sent)
+        expect(response).toContain(`· ${sent.filter((line) => line.startsWith("data:")).length} events`)
+      } finally {
+        server.stop(true)
+        await fs.rm(home, { recursive: true, force: true }).catch(() => {})
+      }
+    },
+    180_000,
+  )
 })

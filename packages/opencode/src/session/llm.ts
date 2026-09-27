@@ -28,6 +28,7 @@ import * as OtelTracer from "@effect/opentelemetry/Tracer"
 import { LLMAISDK } from "./llm/ai-sdk"
 import { LLMNativeRuntime } from "./llm/native-runtime"
 import { LLMRequestPrep } from "./llm/request"
+import { SessionLog } from "./log"
 
 export const OUTPUT_TOKEN_MAX = ProviderTransform.OUTPUT_TOKEN_MAX
 
@@ -217,10 +218,25 @@ const live: Layer.Layer<
           })
         : undefined
 
+      // Who is calling, for the session log's fetch hook, and what they got.
+      const call = { sessionID: input.sessionID, purpose: input.agent.name }
+      const logModel = (runtime: "native" | "ai-sdk", fallback?: string) =>
+        SessionLog.model(input.sessionID, {
+          agent: input.agent.name,
+          providerID: input.model.providerID,
+          modelID: input.model.api.id,
+          baseURL: typeof item.options?.baseURL === "string" ? item.options.baseURL : input.model.api.url,
+          runtime,
+          fallback,
+          maxOutput: prepared.params.maxOutputTokens,
+          options: prepared.params.options,
+          small: input.small,
+        })
+
       // Runtime seam: native is an opt-in adapter over @opencode-ai/llm. It
       // either returns a ready LLMEvent stream or a concrete fallback reason.
       if (flags.experimentalNativeLlm) {
-        const native = LLMNativeRuntime.stream({
+        const native = SessionLog.withCall(call, () => LLMNativeRuntime.stream({
           model: input.model,
           provider: item,
           auth: info,
@@ -235,8 +251,9 @@ const live: Layer.Layer<
           providerOptions: prepared.params.options,
           headers: prepared.headers,
           abort: input.abort,
-        })
+        }))
         if (native.type === "supported") {
+          logModel("native")
           yield* Effect.logInfo("llm runtime selected", {
             "llm.runtime": "native",
             "llm.provider": input.model.providerID,
@@ -253,6 +270,7 @@ const live: Layer.Layer<
           "llm.model": input.model.id,
           "llm.native_unsupported_reason": native.reason,
         })
+        logModel("ai-sdk", native.reason)
         yield* Effect.logInfo("native runtime unavailable; falling back to ai-sdk", {
           providerID: input.model.providerID,
           modelID: input.model.id,
@@ -269,11 +287,14 @@ const live: Layer.Layer<
         "llm.provider": input.model.providerID,
         "llm.model": input.model.id,
       })
+      if (!flags.experimentalNativeLlm) logModel("ai-sdk")
       // Default runtime path: AI SDK owns provider execution and tool dispatch;
       // LLMAISDK.toLLMEvents below normalizes fullStream parts for the processor.
+      // streamText starts the request before it returns, so the call context
+      // set around it reaches the provider's fetch.
       return {
         type: "ai-sdk" as const,
-        result: streamText({
+        result: SessionLog.withCall(call, () => streamText({
           onError(error) {
             bridge.fork(
               Effect.logError("stream error", {
@@ -346,7 +367,7 @@ const live: Layer.Layer<
               sessionId: input.sessionID,
             },
           },
-        }),
+        })),
       }
     })
 

@@ -18,6 +18,7 @@ import {
 } from "@opencode-ai/llm"
 import type { LLMClientShape } from "@opencode-ai/llm/route"
 import { LLMNative } from "./native-request"
+import { SessionLog } from "@/session/log"
 
 export type RuntimeStatus =
   | { readonly type: "supported"; readonly apiKey: string; readonly baseURL?: string }
@@ -139,9 +140,20 @@ export function stream(input: StreamInput): StreamResult {
     ),
   )
 
+  // The session log taps every call, wrapping whichever fetch would have been
+  // used. The fetch runs later on a fiber, where the caller's context is gone,
+  // so the call it belongs to is bound here.
+  const call = SessionLog.currentCall()
   return {
     ...current,
-    stream: fetch ? stream.pipe(Stream.provideService(FetchHttpClient.Fetch, fetch)) : stream,
+    stream: Stream.unwrap(
+      Effect.gen(function* () {
+        const base = fetch ?? (yield* FetchHttpClient.Fetch)
+        const logged = ((url: RequestInfo | URL, init?: RequestInit) =>
+          SessionLog.withCall(call, () => SessionLog.tap(url, init, () => base(url, init)))) as typeof globalThis.fetch
+        return stream.pipe(Stream.provideService(FetchHttpClient.Fetch, logged))
+      }),
+    ),
   }
 }
 
