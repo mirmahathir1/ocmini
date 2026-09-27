@@ -1,0 +1,19 @@
+════════ ocmini session log ════════
+  started     2026-09-27T03:06:02.273Z   (block times below are local, UTC-06:00)
+  ocmini      1.18.30 (b075d16474)   pid 23167   bun 1.4.2   darwin arm64
+  cwd         /Users/mirmahathirmohammad/Documents/ocmini
+  log dir     /Users/mirmahathirmohammad/Documents/ocmini-logs
+  log file    20260927T030602Z-23167.log
+  argv        --log-dir /Users/mirmahathirmohammad/Documents/ocmini-logs
+  perms       ask, per the permission rules
+  config      files are listed as CONFIG blocks when loaded
+
+[21:06:03.612 +1.339s] ── CONFIG ── loaded
+  /Users/mirmahathirmohammad/.config/opencode/opencode.jsonc
+
+[21:06:18.564 +16.291s] ── SESSION ── main
+  id          ses_f1f2c19bcffe4RjT4me0NBjCNH
+  directory   /Users/mirmahathirmohammad/Documents/ocmini/packages/opencode
+  title       New session - 2026-09-27T03:06:18.563Z
+  agent       build
+

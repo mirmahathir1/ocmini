@@ -1,0 +1,9 @@
+[21:06:18.584 +16.311s] ── USER PROMPT ── main · before turn 1
+  > Build a Python CLI called `tsum` in a new folder `tsum` that reads one or more CSV files and prints a summary
+  > table: for every numeric column, the count, min, max, mean, and median, rounded to 3
+  > decimals. Non-numeric columns report count and number of distinct values. Support
+  > `--column NAME` to restrict output, `--json` for machine-readable output, and reading
+  > from stdin when no file is given. Use only the standard library. Handle missing files,
+  > empty files, and ragged rows with clear error messages and non-zero exit codes. Write
+  > pytest tests covering all of it, and a README with usage examples. Make the tests pass. 
+
