@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Session log · Building tsum CSV summary CLI</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #f8f9fa;
+      color: #212529;
+      font: 16px/1.5 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    main { max-width: 960px; margin: 0 auto; padding: 3rem 1.25rem; }
+    header { margin-bottom: 2rem; }
+    h1 { margin: 0 0 .5rem; font-size: 2rem; line-height: 1.2; }
+    h2 { margin: 0 0 .75rem; font-size: 1.15rem; }
+    p { margin: .5rem 0; }
+    .muted { color: #626b73; }
+    section + section { margin-top: 2rem; }
+    ul { margin: 0; padding: 0; list-style: none; }
+    .sections, .turns { display: grid; gap: .75rem; }
+    .sections { grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); }
+    .turns { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
+    a {
+      display: block;
+      height: 100%;
+      padding: 1rem;
+      border: 1px solid #dee2e6;
+      border-radius: .5rem;
+      background: #fff;
+      color: #0b5ed7;
+      text-decoration: none;
+    }
+    a:hover { border-color: #0b5ed7; background: #f0f6ff; }
+    a:focus-visible { outline: 3px solid #0b5ed7; outline-offset: 3px; }
+    a strong { display: block; font-weight: 600; }
+    a span { display: block; margin-top: .25rem; color: #626b73; font-size: .875rem; }
+    .turns a { text-align: center; font-weight: 600; }
+    @media (prefers-color-scheme: dark) {
+      body { background: #181b1f; color: #f1f3f5; }
+      .muted, a span { color: #adb5bd; }
+      a { background: #212529; border-color: #495057; color: #8bb9ff; }
+      a:hover { background: #28384e; border-color: #8bb9ff; }
+      a:focus-visible { outline-color: #8bb9ff; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Session log</h1>
+      <p>Building tsum CSV summary CLI</p>
+      <p class="muted">25 turns · 26 requests · 1 auxiliary request</p>
+      <p class="muted">Open a section, then click a timestamped entry to expand it. Expand JSON and click a string to preview its decoded text.</p>
+    </header>
+
+    <nav aria-label="Session log contents">
+      <section aria-labelledby="start-heading">
+        <h2 id="start-heading">Session start</h2>
+        <ul class="sections">
+          <li>
+            <a href="session/00_session_setup.html">
+              <strong>Session setup</strong>
+              <span>Environment, configuration, and session details</span>
+            </a>
+          </li>
+          <li>
+            <a href="session/01_user_prompt.html">
+              <strong>User prompt</strong>
+              <span>The original task submitted to the agent</span>
+            </a>
+          </li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="turns-heading">
+        <h2 id="turns-heading">Turns</h2>
+        <ul class="turns">
+          <li><a href="session/turns/turn_01.html">Turn 01</a></li>
+          <li><a href="session/turns/turn_02.html">Turn 02</a></li>
+          <li><a href="session/turns/turn_03.html">Turn 03</a></li>
+          <li><a href="session/turns/turn_04.html">Turn 04</a></li>
+          <li><a href="session/turns/turn_05.html">Turn 05</a></li>
+          <li><a href="session/turns/turn_06.html">Turn 06</a></li>
+          <li><a href="session/turns/turn_07.html">Turn 07</a></li>
+          <li><a href="session/turns/turn_08.html">Turn 08</a></li>
+          <li><a href="session/turns/turn_09.html">Turn 09</a></li>
+          <li><a href="session/turns/turn_10.html">Turn 10</a></li>
+          <li><a href="session/turns/turn_11.html">Turn 11</a></li>
+          <li><a href="session/turns/turn_12.html">Turn 12</a></li>
+          <li><a href="session/turns/turn_13.html">Turn 13</a></li>
+          <li><a href="session/turns/turn_14.html">Turn 14</a></li>
+          <li><a href="session/turns/turn_15.html">Turn 15</a></li>
+          <li><a href="session/turns/turn_16.html">Turn 16</a></li>
+          <li><a href="session/turns/turn_17.html">Turn 17</a></li>
+          <li><a href="session/turns/turn_18.html">Turn 18</a></li>
+          <li><a href="session/turns/turn_19.html">Turn 19</a></li>
+          <li><a href="session/turns/turn_20.html">Turn 20</a></li>
+          <li><a href="session/turns/turn_21.html">Turn 21</a></li>
+          <li><a href="session/turns/turn_22.html">Turn 22</a></li>
+          <li><a href="session/turns/turn_23.html">Turn 23</a></li>
+          <li><a href="session/turns/turn_24.html">Turn 24</a></li>
+          <li><a href="session/turns/turn_25.html">Turn 25</a></li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="end-heading">
+        <h2 id="end-heading">Session end</h2>
+        <a href="session/99_session_end.html">
+          <strong>Final summary</strong>
+          <span>Exit status, elapsed time, token usage, and tool totals</span>
+        </a>
+      </section>
+    </nav>
+  </main>
+</body>
+</html>

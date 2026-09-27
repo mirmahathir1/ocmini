@@ -12,6 +12,7 @@
       top: 0;
       z-index: 1000;
       display: flex;
+      flex-wrap: wrap;
       justify-content: flex-end;
       gap: .4rem;
       padding: .45rem .75rem;
@@ -30,6 +31,35 @@
     }
     .json-fold-toolbar button:hover {
       background: var(--bs-tertiary-bg, #f8f9fa);
+    }
+    .log-entry + .log-entry {
+      border-top: 1px solid var(--bs-border-color, #dee2e6);
+    }
+    .log-entry > summary {
+      padding: .75rem 1rem;
+      background: var(--bs-body-bg, #fff);
+      color: var(--bs-body-color, #212529);
+      font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      cursor: pointer;
+    }
+    .log-entry > summary:hover {
+      background: var(--bs-tertiary-bg, #f8f9fa);
+    }
+    .log-entry > summary:focus-visible {
+      outline: 2px solid #0b5ed7;
+      outline-offset: -2px;
+    }
+    .log-entry-body {
+      margin: 0;
+      padding: 0 1rem 1rem;
+      overflow: auto;
+      background: var(--bs-body-bg, #fff);
+      color: var(--bs-body-color, #212529);
+      font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      white-space: pre;
+      tab-size: 4;
     }
     .json-tree {
       display: inline-block;
@@ -75,6 +105,70 @@
       display: block;
       min-height: 1.25em;
     }
+    .json-string-link {
+      appearance: none;
+      border: 0;
+      border-radius: 2px;
+      padding: 0;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      text-align: left;
+      white-space: inherit;
+      cursor: pointer;
+      text-decoration: underline dotted;
+      text-underline-offset: .2em;
+    }
+    .json-string-link:hover { background: rgba(127, 127, 127, .12); }
+    .json-string-link:focus-visible {
+      outline: 2px solid #0b5ed7;
+      outline-offset: 2px;
+    }
+    .json-string-dialog {
+      box-sizing: border-box;
+      width: min(72rem, calc(100vw - 2rem));
+      max-width: none;
+      max-height: calc(100vh - 2rem);
+      margin: auto;
+      padding: 0;
+      border: 1px solid var(--bs-border-color, #dee2e6);
+      border-radius: .6rem;
+      background: var(--bs-body-bg, #fff);
+      color: var(--bs-body-color, #212529);
+      box-shadow: 0 1rem 3rem rgba(0, 0, 0, .25);
+      font: 14px/1.5 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    .json-string-dialog[open] { display: flex; flex-direction: column; }
+    .json-string-dialog::backdrop { background: rgba(0, 0, 0, .55); }
+    .json-string-header {
+      display: flex;
+      flex-shrink: 0;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: .75rem 1rem;
+      border-bottom: 1px solid var(--bs-border-color, #dee2e6);
+    }
+    .json-string-header h2 { margin: 0; font-size: 1rem; }
+    .json-string-header button {
+      border: 1px solid var(--bs-border-color, #ced4da);
+      border-radius: .35rem;
+      padding: .25rem .65rem;
+      background: var(--bs-tertiary-bg, #f8f9fa);
+      color: inherit;
+      font: inherit;
+      cursor: pointer;
+    }
+    .json-string-content {
+      min-height: 0;
+      margin: 0;
+      padding: 1rem;
+      overflow: auto;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      tab-size: 4;
+      font: 13px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
     .json-tree-key { font-weight: 600; }
     .json-tree-colon { margin-right: .25rem; }
     .json-tree-close {
@@ -93,8 +187,52 @@
       .json-tree-boolean { color: #c5a3ff; }
     }
   </style>
+  <style id="turn-navigation-style">
+    .turn-header {
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      background: var(--bs-body-bg, #fff);
+    }
+    .turn-header .json-fold-toolbar { position: static; }
+    .turn-navigation {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: .75rem;
+      padding: .75rem;
+      border-bottom: 1px solid var(--bs-border-color, #dee2e6);
+      font: 14px/1.4 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    .turn-pagination { display: flex; flex-wrap: wrap; gap: .5rem; }
+    .turn-navigation a, .turn-navigation button {
+      display: inline-block;
+      border: 1px solid var(--bs-border-color, #ced4da);
+      border-radius: .35rem;
+      padding: .4rem .7rem;
+      background: var(--bs-body-bg, #fff);
+      color: #0b5ed7;
+      font: inherit;
+      text-decoration: none;
+    }
+    .turn-navigation a:hover { background: var(--bs-tertiary-bg, #f8f9fa); }
+    .turn-navigation a:focus-visible { outline: 2px solid #0b5ed7; outline-offset: 2px; }
+    .turn-navigation button:disabled { color: #6c757d; opacity: .65; cursor: default; }
+    .turn-position { color: var(--bs-body-color, #212529); }
+  </style>
 </head>
 <body class="bg-body-tertiary">
+  <header class="turn-header">
+    <nav class="turn-navigation" aria-label="Turn navigation">
+      <a href="../../index.html">← Back to index</a>
+      <span class="turn-position">Turn 09 of 25</span>
+      <div class="turn-pagination">
+        <a href="turn_08.html" rel="prev">← Previous turn</a>
+        <a href="turn_10.html" rel="next">Next turn →</a>
+      </div>
+    </nav>
+  </header>
   <main class="container-fluid p-3 p-md-4">
     <div class="card shadow-sm">
       <div class="card-body p-0">
@@ -882,12 +1020,33 @@
       return el;
     }
 
+    function renderString(source, cls) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "json-string-link " + cls;
+      button.textContent = source;
+      button.title = "Preview rendered string";
+      button.setAttribute("aria-haspopup", "dialog");
+      button.setAttribute("aria-controls", "json-string-preview");
+      button.addEventListener("click", () => {
+        // Decode exactly one JSON layer and keep log content as text, including HTML.
+        content.textContent = JSON.parse(source);
+        dialog.showModal();
+        content.scrollTop = 0;
+        content.scrollLeft = 0;
+      });
+      return button;
+    }
+
     function renderTree(jsonText) {
       let ast;
       try { ast = parseExactJson(jsonText); }
       catch (_) { return document.createTextNode(jsonText); }
 
       function renderValue(node) {
+        if (node.type === "string") {
+          return renderString(jsonText.slice(node.start, node.end), "json-tree-primitive json-tree-string");
+        }
         if (node.type !== "object" && node.type !== "array") {
           return span("json-tree-primitive json-tree-" + node.type, jsonText.slice(node.start, node.end));
         }
@@ -916,7 +1075,7 @@
             row.className = "json-tree-row";
             if (isObj) {
               row.append(
-                span("json-tree-key", jsonText.slice(entry.key.start, entry.key.end)),
+                renderString(jsonText.slice(entry.key.start, entry.key.end), "json-tree-key"),
                 span("json-tree-colon", ": "),
                 renderValue(entry.value)
               );
@@ -957,36 +1116,102 @@
       return ranges.length;
     }
 
-    function setAll(collapsed) {
-      document.querySelectorAll(".json-tree-node").forEach((node) => {
+    function foldLog(pre) {
+      const original = pre.textContent;
+      // Only unindented log headers start entries; timestamps inside tool output stay in their body.
+      const headers = Array.from(original.matchAll(/^(?:\[\d{2}:\d{2}:\d{2}\.\d{3} \+\d+(?:\.\d+)?s\] ── |═{8} (?:ocmini session log|session end) ═{8})[^\r\n]*/gm));
+      if (!headers.length) return;
+
+      const entries = document.createElement("div");
+      entries.className = "log-entries";
+      if (headers[0].index > 0) {
+        const prefix = document.createElement("pre");
+        prefix.className = "log-entry-body";
+        prefix.textContent = original.slice(0, headers[0].index);
+        entries.append(prefix);
+      }
+
+      headers.forEach((header, index) => {
+        const entry = document.createElement("details");
+        entry.className = "log-entry";
+
+        const summary = document.createElement("summary");
+        summary.textContent = header[0];
+
+        const body = document.createElement("pre");
+        body.className = "log-entry-body";
+        body.textContent = original.slice(header.index + header[0].length, headers[index + 1]?.index ?? original.length);
+        entry.append(summary, body);
+        entries.append(entry);
+      });
+      pre.replaceWith(entries);
+    }
+
+    function setAll(selector, collapsed) {
+      document.querySelectorAll(selector).forEach((node) => {
         node.open = !collapsed;
       });
     }
 
+    document.querySelectorAll("main pre").forEach(foldLog);
     let count = 0;
-    document.querySelectorAll("pre").forEach((pre) => { count += enhancePre(pre); });
-    if (!count) return;
+    document.querySelectorAll("main pre").forEach((pre) => { count += enhancePre(pre); });
+    if (!count && !document.querySelector(".log-entry")) return;
 
-    // All JSON objects and arrays start collapsed.
-    setAll(true);
+    const dialog = document.createElement("dialog");
+    dialog.id = "json-string-preview";
+    dialog.className = "json-string-dialog";
+    dialog.setAttribute("aria-labelledby", "json-string-title");
+
+    const header = document.createElement("div");
+    header.className = "json-string-header";
+
+    const title = document.createElement("h2");
+    title.id = "json-string-title";
+    title.textContent = "Rendered string";
+
+    const close = document.createElement("button");
+    close.type = "button";
+    close.textContent = "Close";
+    close.autofocus = true;
+    close.addEventListener("click", () => dialog.close());
+
+    const content = document.createElement("pre");
+    content.className = "json-string-content";
+    content.tabIndex = 0;
+
+    header.append(title, close);
+    dialog.append(header, content);
+    dialog.addEventListener("click", (event) => {
+      if (event.target !== dialog) return;
+      const bounds = dialog.getBoundingClientRect();
+      if (event.clientX < bounds.left || event.clientX > bounds.right ||
+          event.clientY < bounds.top || event.clientY > bounds.bottom) dialog.close();
+    });
+    dialog.addEventListener("close", () => { content.textContent = ""; });
+    document.body.append(dialog);
+
+    // Log entries and all nested JSON objects and arrays start collapsed.
+    setAll(".json-tree-node", true);
 
     const toolbar = document.createElement("div");
     toolbar.className = "json-fold-toolbar";
     toolbar.setAttribute("role", "toolbar");
-    toolbar.setAttribute("aria-label", "JSON controls");
+    toolbar.setAttribute("aria-label", "Log controls");
 
-    const expand = document.createElement("button");
-    expand.type = "button";
-    expand.textContent = "Expand all JSON";
-    expand.addEventListener("click", () => setAll(false));
-
-    const collapse = document.createElement("button");
-    collapse.type = "button";
-    collapse.textContent = "Collapse all JSON";
-    collapse.addEventListener("click", () => setAll(true));
-
-    toolbar.append(expand, collapse);
-    document.body.prepend(toolbar);
+    [
+      { label: "Expand all entries", selector: ".log-entry", collapsed: false },
+      { label: "Collapse all entries", selector: ".log-entry", collapsed: true },
+      { label: "Expand all JSON", selector: ".json-tree-node", collapsed: false },
+      { label: "Collapse all JSON", selector: ".json-tree-node", collapsed: true },
+    ].filter((control) => document.querySelector(control.selector)).forEach((control) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = control.label;
+      button.addEventListener("click", () => setAll(control.selector, control.collapsed));
+      toolbar.append(button);
+    });
+    document.querySelector(".turn-header").append(toolbar);
   })();
   </script>
 </body>
