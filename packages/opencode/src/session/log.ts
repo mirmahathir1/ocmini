@@ -291,7 +291,9 @@ export function start(input: { dir: string; argv?: string[] }) {
   let opened: number
   try {
     fs.mkdirSync(dir, { recursive: true })
-    opened = fs.openSync(target, "wx")
+    // Append mode: the TUI worker appends to this file on its own fd, and the
+    // footer written here must land after its blocks, not over them.
+    opened = fs.openSync(target, "ax")
   } catch (error) {
     throw new StartError(`cannot write session logs to ${dir}: ${message(error)}`)
   }

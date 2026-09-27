@@ -308,10 +308,11 @@ describe("session log contents", () => {
   )
 })
 
-// A crash can't be provoked through the CLI on purpose, so these start a log
-// the way the CLI does and then die. The footer must still be written, and the
-// runtime's own handling of the crash must be unchanged: the process exits 1.
-describe("session log on a crash", () => {
+// These start a log the way the CLI does and then do something the CLI can't
+// be made to do on purpose: crash, or write from a second handle the way the
+// TUI's worker thread does. The footer must still be written, in the right
+// place, and a crash must still end the process the way the runtime would.
+describe("session log from a bare script", () => {
   const crash = async (how: string) => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "oc-log-crash-"))
     try {
@@ -342,5 +343,24 @@ describe("session log on a crash", () => {
     expect(result.stderr).toContain("nobody caught this")
     expect(result.log).toMatch(/── ERROR ── unhandled rejection\n  Error: nobody caught this\n/)
     expect(result.log).toMatch(/\n  exit        crashed: unhandled rejection \(1\)   wall /)
+  })
+
+  test("the footer lands after blocks appended through another handle", async () => {
+    // The TUI's worker appends on its own fd; the main thread writes the
+    // footer. A non-append fd here once wrote the footer over the worker's
+    // blocks, right after the header.
+    const result = await crash(
+      [
+        `const fs = require("fs")`,
+        `const fd = fs.openSync(process.env.OCMINI_SESSION_LOG, "a")`,
+        `fs.writeSync(fd, "\\n[worker] ── SESSION ── main\\n  written by another handle\\n")`,
+      ].join("\n"),
+    )
+    expect(result.code).toBe(0)
+    const worker = result.log.indexOf("[worker] ── SESSION ── main\n  written by another handle\n")
+    const footer = result.log.indexOf("════════ session end ════════")
+    expect(worker).toBeGreaterThan(result.log.indexOf("  config "))
+    expect(footer).toBeGreaterThan(worker)
+    expect(result.log).toMatch(/\n  exit        completed \(0\)   wall /)
   })
 })
