@@ -16,6 +16,44 @@ function latest(dir: string) {
   return fs.readFileSync(path.join(dir, "latest.log"), "utf8")
 }
 
+// The one block whose header line starts with `head`.
+function block(log: string, head: string) {
+  const found = log
+    .split("\n\n")
+    .map((item) => item.trim())
+    .filter((item) =>
+      item
+        .split("\n")[0]!
+        .replace(/^\[[^\]]+\] /, "")
+        .startsWith(head),
+    )
+  expect(found, `one block headed ${head}`).toHaveLength(1)
+  return found[0]!
+}
+
+// The indented lines under `label` in a block, dedented.
+function section(text: string, label: string) {
+  const lines = text.split("\n")
+  const start = lines.indexOf(`  ${label}`)
+  expect(start, `section ${label}`).toBeGreaterThan(-1)
+  const body: string[] = []
+  for (const line of lines.slice(start + 1)) {
+    if (!line.startsWith("    ")) break
+    body.push(line.slice(4))
+  }
+  return body.join("\n")
+}
+
+// A logged request's body, parsed back from its pretty-printed form.
+function requestBody(log: string, head: RegExp) {
+  const found = log
+    .split("\n\n")
+    .map((item) => item.trim())
+    .find((item) => head.test(item.split("\n")[0]!))
+  expect(found, `a block matching ${head}`).toBeDefined()
+  return JSON.parse(section(found!, "body"))
+}
+
 describe("--log-dir", () => {
   cliIt.concurrent(
     "is required by every command that starts a session",
@@ -161,9 +199,15 @@ describe("session log contents", () => {
           /── TOOL #1 ── main · turn 1 · bash call_1\n  args\n    \{\n      "command": "printf tool-output",/,
         )
         expect(log).toMatch(/── PERMISSION ── main · turn 1 · bash · call_1 · (?:ask|allow)\n  printf tool-output → /)
-        expect(log).toMatch(
-          /── TOOL #1 END ── main · turn 1 · bash call_1 · ok · [\d.]+m?s\n(?:.*\n)*?  output\n    tool-output\n/,
-        )
+        // The logged output is exactly what the model was sent back: compare it
+        // with the tool message in the next request's body, as logged. (Not
+        // with "tool-output": under load the bash tool sometimes returns
+        // nothing, and the log must say so rather than what was expected.)
+        const end = block(log, "── TOOL #1 END ── main · turn 1 · bash call_1 · ok · ")
+        const next = requestBody(log, /── REQUEST #\d+ ── main · turn 2 · purpose build/)
+        const sent = next.messages.find((message: any) => message.role === "tool" && message.tool_call_id === "call_1")
+        expect(sent, "no tool result in the turn-2 request").toBeDefined()
+        expect(section(end, "output")).toBe(sent.content === "" ? "(empty)" : sent.content)
         expect(log).toMatch(/── RESPONSE #\d+ SUMMARY ── main · turn 1 · purpose build · finish tool-calls/)
         expect(log).toContain('  tool calls\n    bash call_1 {"command":"printf tool-output"')
         expect(log).toMatch(/── TURN 2 ── main · agent build/)
