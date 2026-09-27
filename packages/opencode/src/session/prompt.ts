@@ -51,6 +51,8 @@ import { SessionTable } from "@opencode-ai/core/session/sql"
 import { SessionReminders } from "./reminders"
 import { SessionTools } from "./tools"
 import { LLMEvent } from "@opencode-ai/llm"
+import { SessionLog } from "./log"
+import { tokenCount } from "./overflow"
 
 // @ts-ignore
 globalThis.AI_SDK_LOG_WARNINGS = false
@@ -902,6 +904,7 @@ const layer = Layer.effect(
     )(function* (input: PromptInput) {
       const session = yield* sessions.get(input.sessionID).pipe(Effect.orDie)
       const message = yield* createUserMessage(input)
+      SessionLog.prompt(input.sessionID, input.parts)
       yield* sessions.touch(input.sessionID)
 
       const permissions: PermissionV1.Rule[] = []
@@ -1010,6 +1013,7 @@ const layer = Layer.effect(
             lastFinished.summary !== true &&
             (yield* compaction.isOverflow({ tokens: lastFinished.tokens, model }))
           ) {
+            SessionLog.overflow(sessionID, { count: tokenCount(lastFinished.tokens), source: "found before the next turn" })
             yield* compaction.create({ sessionID, agent: lastUser.agent, model: lastUser.model, auto: true })
             continue
           }
@@ -1057,6 +1061,7 @@ const layer = Layer.effect(
             yield* sessions.updateMessage(msg)
           })
 
+          SessionLog.turnStart(sessionID, { step, agent: agent.name, model: `${model.providerID}/${model.api.id}` })
           const handle = yield* processor
             .create({
               assistantMessage: msg,
@@ -1085,6 +1090,12 @@ const layer = Layer.effect(
               Effect.provideService(RuntimeFlags.Service, flags),
             )
 
+            SessionLog.agent(sessionID, {
+              name: agent.name,
+              tools: Object.keys(tools),
+              permission: Permission.merge(agent.permission, session.permission ?? []),
+            })
+
             if (lastUser.format?.type === "json_schema") {
               tools["StructuredOutput"] = createStructuredOutputTool({
                 schema: lastUser.format.schema,
@@ -1104,6 +1115,10 @@ const layer = Layer.effect(
               instruction.system().pipe(Effect.orDie),
               MessageV2.toModelMessagesEffect(msgs, model),
             ])
+            SessionLog.context(sessionID, {
+              instructions: instructions.map((item) => item.split("\n")[0]!.replace(/^Instructions from: /, "")),
+              skills: [...(skills ?? "").matchAll(/<name>([^<]+)<\/name>/g)].map((match) => match[1]!),
+            })
             const system = [
               ...env,
               ...instructions,
@@ -1126,6 +1141,7 @@ const layer = Layer.effect(
               model,
               toolChoice: format.type === "json_schema" ? "required" : undefined,
             })
+            SessionLog.turnEnd(sessionID, { step, outcome: result, finish: handle.message.finish })
 
             if (structured !== undefined) {
               handle.message.structured = structured

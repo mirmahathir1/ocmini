@@ -11,6 +11,10 @@ function logs(dir: string) {
   return fs.readdirSync(dir).filter((name) => /^\d{8}T\d{6}Z-\d+\.log$/.test(name))
 }
 
+function latest(dir: string) {
+  return fs.readFileSync(path.join(dir, "latest.log"), "utf8")
+}
+
 describe("--log-dir", () => {
   cliIt.concurrent(
     "is required by every command that starts a session",
@@ -93,4 +97,52 @@ describe("--log-dir", () => {
         }),
       60_000,
     )
+})
+
+describe("session log contents", () => {
+  cliIt.concurrent(
+    "records the prompt, each turn, the model's reply and the totals",
+    ({ llm, opencode, logDir }) =>
+      Effect.gen(function* () {
+        yield* llm.text("hello from the test llm", { usage: { input: 120, output: 7 } })
+        const result = yield* opencode.run("say hi")
+        opencode.expectExit(result, 0)
+
+        const log = latest(logDir)
+        expect(log).toMatch(/── SESSION ── main\n  id          ses_/)
+        expect(log).toMatch(/── USER PROMPT ── main · before turn 1\n  .*say hi/)
+        expect(log).toMatch(/── TURN 1 ── main · agent build · test\/test-model\n/)
+        expect(log).toMatch(/── AGENT ── main · build\n  tools       \d+: .*\bread\b/)
+        expect(log).toMatch(/── MODEL ── main · agent build\n  model       test\/test-model /)
+        expect(log).toMatch(/── REQUEST #\d+ ── main · turn 1 · purpose build\n/)
+        expect(log).toMatch(/── RESPONSE #\d+ SUMMARY ── main · turn 1 · purpose build · finish stop · continue\n/)
+        expect(log).toContain("\n  text\n    hello from the test llm\n")
+        expect(log).toContain("usage       in 120 · cached 0 · out 7 (reasoning 0)")
+        expect(log).toMatch(/── TURN 1 END ── main · continue · finish stop\n  totals      turns 1 · /)
+        expect(log).toMatch(/\n  turns       1   requests \d+ \(\d+ aux\)   retries 0   429s 0\n/)
+        expect(log).toMatch(/\n  tokens      in 120 · cached 0 · out 7 \(reasoning 0\)\n/)
+      }),
+    60_000,
+  )
+
+  cliIt.concurrent(
+    "records a rate-limited call and the retry that followed",
+    ({ llm, opencode, logDir }) =>
+      Effect.gen(function* () {
+        yield* llm.error(429, { error: { message: "Rate limit exceeded", type: "rate_limit" } })
+        yield* llm.text("recovered")
+        const result = yield* opencode.run("try it", { timeoutMs: 45_000 })
+        opencode.expectExit(result, 0)
+        expect(result.stdout).toBe("recovered\n")
+
+        const log = latest(logDir)
+        expect(log).toMatch(/── RESPONSE #\d+ ── main · turn 1 · 429[^\n]*· ttfb /)
+        expect(log).toContain("Rate limit exceeded")
+        expect(log).toMatch(/── RETRY ── main · turn 1 · attempt 1\n  cause       [^\n]+\n/)
+        expect(log).toMatch(/\n  backoff     [\d.]+s → next attempt at \d{2}:\d{2}:\d{2}\.\d{3}\n/)
+        expect(log).toMatch(/retries 1   429s 1\n/)
+        expect(log).toMatch(/exit        completed \(0\)   wall \d+s \(waiting: user 0s, rate limit \d+s\)/)
+      }),
+    60_000,
+  )
 })

@@ -183,7 +183,14 @@ function parseJSON(value: unknown) {
 export function policy(opts: {
   provider: string
   parse: (error: unknown) => Err
-  set: (input: { attempt: number; message: string; action?: Retryable["action"]; next: number }) => Effect.Effect<void>
+  set: (input: {
+    attempt: number
+    message: string
+    action?: Retryable["action"]
+    next: number
+    wait: number
+    error: Err
+  }) => Effect.Effect<void>
 }) {
   return Schedule.fromStepWithMetadata(
     Effect.succeed((meta: Schedule.InputMetadata<unknown>) => {
@@ -199,6 +206,8 @@ export function policy(opts: {
           message: retry.message,
           action: retry.action,
           next: now + wait,
+          wait,
+          error,
         })
         return [meta.attempt, Duration.millis(wait)] as [number, Duration.Duration]
       })

@@ -44,6 +44,7 @@ import { RuntimeFlags } from "@/effect/runtime-flags"
 import { ProviderV2 } from "@opencode-ai/core/provider"
 import { ModelV2 } from "@opencode-ai/core/model"
 import { SessionMessage } from "@opencode-ai/schema/session-message"
+import { SessionLog } from "./log"
 
 const parentTitlePrefix = "New session - "
 const childTitlePrefix = "Child session - "
@@ -531,6 +532,7 @@ const layer: Layer.Layer<
         },
       }
       yield* Effect.logInfo("created", result)
+      SessionLog.session(result)
 
       yield* events.publish(SessionV1.Event.Created, { sessionID: result.id, info: result })
 

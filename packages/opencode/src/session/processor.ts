@@ -9,7 +9,8 @@ import { Permission } from "@/permission"
 import { Session } from "./session"
 import { LLM } from "./llm"
 import { MessageV2 } from "./message-v2"
-import { isOverflow } from "./overflow"
+import { isOverflow, tokenCount, usable } from "./overflow"
+import { SessionLog } from "./log"
 import { PartID } from "./schema"
 import type { SessionID } from "./schema"
 import { SessionRetry } from "./retry"
@@ -442,11 +443,14 @@ const layer = Layer.effect(
                 messageID: ctx.assistantMessage.parentID,
               })
               .pipe(Effect.ignore, Effect.forkIn(scope))
-            if (
-              !ctx.assistantMessage.summary &&
-              isOverflow({ cfg: yield* config.get(), tokens: usage.tokens, model: ctx.model })
-            ) {
+            const cfg = yield* config.get()
+            if (!ctx.assistantMessage.summary && isOverflow({ cfg, tokens: usage.tokens, model: ctx.model })) {
               ctx.needsCompaction = true
+              SessionLog.overflow(ctx.sessionID, {
+                count: tokenCount(usage.tokens),
+                usable: usable({ cfg, model: ctx.model }),
+                source: "reached by this response",
+              })
             }
             return
           }
@@ -557,6 +561,7 @@ const layer = Layer.effect(
             return
           }
           ctx.needsCompaction = true
+          SessionLog.overflow(ctx.sessionID, { source: "the provider rejected the request as too large" })
           yield* events.publish(Session.Event.Error, { sessionID: ctx.sessionID, error })
           return
         }
@@ -575,16 +580,21 @@ const layer = Layer.effect(
         })
         ctx.needsCompaction = false
         ctx.shouldBreak = (yield* config.get()).experimental?.continue_loop_on_deny !== true
+        const logged = SessionLog.call(ctx.sessionID, streamInput.agent.name)
 
         return yield* Effect.gen(function* () {
           yield* Effect.gen(function* () {
             ctx.currentText = undefined
             ctx.reasoningMap = {}
+            logged.attempt()
             yield* status.set(ctx.sessionID, { type: "busy" })
             const stream = llm.stream(streamInput)
 
             yield* stream.pipe(
-              Stream.tap((event) => handleEvent(event)),
+              Stream.tap((event) => {
+                logged.event(event)
+                return handleEvent(event)
+              }),
               Stream.takeUntil(() => ctx.needsCompaction),
               Stream.runDrain,
             )
@@ -606,6 +616,7 @@ const layer = Layer.effect(
                 provider: input.model.providerID,
                 parse,
                 set: (info) => {
+                  SessionLog.retry(ctx.sessionID, info)
                   return status.set(ctx.sessionID, {
                     type: "retry",
                     attempt: info.attempt,
@@ -620,10 +631,18 @@ const layer = Layer.effect(
             Effect.ensuring(cleanup()),
           )
 
-          if (ctx.needsCompaction) return "compact"
-          if (ctx.blocked || ctx.assistantMessage.error) return "stop"
-          return "continue"
-        })
+          const result: Result = ctx.needsCompaction
+            ? "compact"
+            : ctx.blocked || ctx.assistantMessage.error
+              ? "stop"
+              : "continue"
+          logged.end({ result, error: ctx.assistantMessage.error })
+          return result
+        }).pipe(
+          Effect.onInterrupt(() =>
+            Effect.sync(() => logged.end({ result: "interrupted", error: ctx.assistantMessage.error })),
+          ),
+        )
       })
 
       return {
