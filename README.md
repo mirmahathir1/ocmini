@@ -64,6 +64,49 @@ nix run nixpkgs#opencode           # or github:anomalyco/opencode for latest dev
 > [!TIP]
 > Remove versions older than 0.1.x before installing.
 
+### Session logs
+
+Every session writes a log, and you choose where. `--log-dir` is required by
+every command that starts a session, and there is no default:
+
+```bash
+bun dev --log-dir ~/ocmini-logs .                     # interactive
+bun dev run --log-dir ~/ocmini-logs "fix the tests"   # one-shot
+```
+
+A relative folder is taken from the directory you ran the command in, and it
+is created if it doesn't exist. If it can't be written, ocmini stops before
+starting the session. `--help` and `--version` don't need the flag.
+
+Each run writes one file, `<UTC time>-<pid>.log`, and `latest.log` in the same
+folder points at the newest one. ocmini never prints the path. Nothing is ever
+deleted, and a long run can produce tens of megabytes, because every request
+resends the whole conversation.
+
+The file is plain text. Every entry starts with a header line such as
+`[14:03:11.932 +0.728s] ── REQUEST #2 ── main · turn 1 · purpose build`, so
+`grep '── TOOL'` or `grep '── RETRY'` lists one kind of entry. It records:
+
+- every request to the model and every streamed event of its response,
+  exactly as sent and received, plus a summary of each reply
+- every tool call, with the output the model was given
+- permission checks and your answers, and questions the model asked with
+  your answers
+- retries, rate limits and errors
+- sub-agents, compaction and todo lists
+- a footer with the run's turns, tokens, tool calls and questions
+
+Secrets are masked in the log's copy: API keys and auth headers, values of
+environment variables named like `*KEY*`, `*TOKEN*`, `*SECRET*` or
+`*PASSWORD*`, well-known token formats, private keys, and `NAME=value` secrets.
+This is pattern matching and can miss things. Everything else is logged in
+full: prompts, file contents, command output. On the Contributor Free tier,
+apart from the masked secrets, the log holds exactly what was sent to zen.
+
+For acceptance runs (`ocmini-spec.md` §7), keep the log folder outside the
+task's working directory, so the logs don't show up in the checks for files
+the run modified.
+
 ### Desktop App (BETA)
 
 OpenCode is also available as a desktop application. Download directly from the [releases page](https://github.com/anomalyco/opencode/releases) or [opencode.ai/download](https://opencode.ai/download).

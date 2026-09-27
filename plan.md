@@ -59,12 +59,14 @@ The details behind those decisions:
     already use for the project directory.
   - **Folder checks at startup.** The folder is created if it doesn't exist. If it can't
     be created or written to, ocmini exits at startup with the path and the reason.
-  - **Handing it to the TUI.** The resolved absolute path is passed to the TUI's worker
-    thread the same way `--print-logs` becomes `OPENCODE_PRINT_LOGS`: the middleware sets
-    it in the environment. The flag is still the only supported way to set it.
+  - **Handing it to the TUI.** The log file's path (not just the folder) is passed to the
+    TUI's worker thread the same way `--print-logs` becomes `OPENCODE_PRINT_LOGS`: the
+    middleware sets it in the environment, with the pid, so a child process that inherits
+    the environment doesn't write to it. The flag is still the only supported way to set it.
 - **File name** is `<UTC timestamp>-<pid>.log`, e.g. `20260926T140311Z-48213.log`. The file
   opens at process start, before a session id exists, so startup failures (no API key, bad
-  config) get logged too. The session id goes in the header once it is known.
+  config) get logged too. The session id is written in a `SESSION` block once the session
+  exists, since blocks are only ever appended.
 - **`latest.log`** is a symlink in the log folder that always points at the newest file
   in that folder. Since ocmini never prints the path, this is how you find the current log.
   If you use different folders for different runs, each folder has its own `latest.log`.
@@ -297,7 +299,7 @@ stream, and the fetch hook reads it.
 | `--log-dir` flag, folder check, enforcement | Global option and middleware in `src/index.ts`, required on the TUI, `run` and `serve` commands |
 | Header, footer, crash handler | CLI entry (`src/index.ts`, `src/cli/cmd/run.ts`, `src/cli/cmd/tui.ts`), `process.on("exit" / "uncaughtException" / "unhandledRejection" / "SIGINT")` |
 | Resolved model, runtime choice | `src/session/llm.ts` around the runtime seam (it already logs `llm runtime selected`) |
-| Raw request + response (ai-sdk path) | The `options["fetch"]` wrapper in `src/provider/provider.ts` (~L1748). Log the request, then `tee()` the response body. The SDK reads one branch untouched, and the logger drains the other, splitting SSE lines as they arrive |
+| Raw request + response (ai-sdk path) | The `options["fetch"]` wrapper in `src/provider/provider.ts` (~L1748). Log the request, then hand the SDK a pass-through body: each chunk is logged as the SDK reads it, then passed on unchanged. The logger never reads ahead, so nothing is buffered for a reader that stops early |
 | Raw request + response (native path) | `providerFetch` in `src/session/llm/native-runtime.ts`, wrapped the same way. Only used behind `experimentalNativeLlm` |
 | Response summary, usage | `src/session/processor.ts`, where LLM events (finish, usage, tool-call) are already consumed |
 | Retries, 429s | `src/session/processor.ts` retry block (~L604) and `src/session/retry.ts` |
@@ -382,6 +384,49 @@ Each step is one commit on `master`.
    what gets scrubbed and what doesn't, and the training-rights caveat: apart from masked
    secrets, the file holds exactly what zen saw. Update the acceptance-run instructions to
    pass a log folder outside the task directory.
+
+## As built
+
+Implemented in the commits after `e0a609817e` on `master`. Where the build
+differs from the plan above:
+
+- **Steps became commits** like this: 1 (flag and module, including the crash
+  and signal handling from step 5), 2 (wire capture), 3 with step 5's retries
+  (turns, summaries, retries; they share the processor), 4 (tools, permissions,
+  questions), a prettier-only commit, 6 (sub-agents and context management), the
+  rest of step 5 (interrupt and crash tests), and 7 (this section and the
+  README). Two bugs were found and fixed along the way. The TUI's footer
+  overwrote the worker's blocks, because the log was opened non-append. A
+  rethrown unhandled rejection was logged twice.
+- **More block kinds than listed.** `SESSION` (id, parent, scope label),
+  `MODEL` (once per session and agent: model id with the `-contributor-free`
+  check, base URL, runtime, provider options such as `store`/`include`/
+  reasoning effort, max output), `AGENT` (tools offered, permission rules),
+  `CONTEXT` (instruction files, skills), `CONFIG` (each config source loaded),
+  and `LOG WARN`/`LOG ERROR` (forwarded from the Effect logger).
+- **A response is written as two blocks.** `RESPONSE #n` holds the raw exchange
+  and is written when the body finishes, errors or is cancelled. That keeps
+  concurrent streams (the title call runs alongside the first turn) from
+  interleaving. A response still streaming at exit or crash is flushed and
+  marked unfinished. `RESPONSE #n SUMMARY` holds the processor's view: text,
+  reasoning, tool calls, finish, usage.
+- **Permission checks are their own blocks** (`PERMISSION`, `PERMISSION REPLY`),
+  written chronologically between a tool's `TOOL #n` and `TOOL #n END`, rather
+  than folded into the tool block. A tool's metadata values over 1,000 characters
+  (whole before/after file contents) are shown by size. The output the model
+  saw is always in full. Permission asks show what the user saw in full.
+- **Turns are numbered by agent turns**, not prompt-loop iterations. A loop pass
+  that only runs compaction or a queued subtask is not a turn.
+- **Log state is tied to the file path.** Numbering, scopes, totals and the
+  failure flag reset if the path changes. A real run never changes it; tests,
+  which share one process, rely on it.
+- **Signals.** On SIGINT/SIGTERM/SIGHUP with no other handler, the footer is
+  written and the signal re-raised, so the process still dies the way it would
+  have. When something else handles the signal, as the interactive run loop
+  does for Ctrl-C, the log only notes it.
+- **Not covered by an automated test:** the full-screen TUI. It was checked by
+  hand, driving it in a pseudo-terminal against the parity replay server. The
+  append-mode regression test covers the part of it that broke.
 
 ## Not in this plan
 
