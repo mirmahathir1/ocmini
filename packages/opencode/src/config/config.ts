@@ -35,6 +35,7 @@ import { ConfigVariable } from "./variable"
 import { ConfigV2Compat } from "./v2-compat"
 import { Npm } from "@opencode-ai/core/npm"
 import { withTransientReadRetry } from "@/util/effect-http-client"
+import { SessionLog } from "@/session/log"
 
 // Custom merge function that concatenates array fields instead of replacing them
 // Keep remeda's deep conditional merge type out of hot config-loading paths; TS profiling showed it dominates here.
@@ -252,6 +253,7 @@ const layer = Layer.effect(
       yield* Effect.logInfo("loading", { path: filepath })
       const text = yield* readConfigFile(filepath)
       if (!text) return {} as Info
+      SessionLog.config(filepath)
       return yield* loadConfig(text, { path: filepath }, env)
     })
 
@@ -484,6 +486,7 @@ const layer = Layer.effect(
             source,
           })
           yield* merge(source, next, "local")
+          SessionLog.config("OPENCODE_CONFIG_CONTENT (inline, from the environment)")
           yield* Effect.logDebug("loaded custom config from OPENCODE_CONFIG_CONTENT")
         }
 

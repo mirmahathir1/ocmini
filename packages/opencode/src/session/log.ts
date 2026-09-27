@@ -501,20 +501,24 @@ export function prompt(sessionID: string, parts: ReadonlyArray<unknown>) {
   block("USER PROMPT", [scope(sessionID)?.label, `before turn ${(scope(sessionID)?.turns ?? 0) + 1}`], body)
 }
 
-export function turnStart(sessionID: string, info: { step: number; agent: string; model: string }) {
+// Turns are the agent's model calls, numbered per session — what ocmini-spec.md
+// §7 counts. Loop iterations that only run compaction or a queued subtask are
+// not turns; their blocks carry the number of the turn before them.
+export function turnStart(sessionID: string, info: { agent: string; model: string }) {
   if (!enabled()) return
   const s = scope(sessionID)!
-  s.turn = info.step
   s.turns++
+  s.turn = s.turns
   totals.turns++
-  block(`TURN ${info.step}`, [s.label, `agent ${info.agent}`, info.model])
+  block(`TURN ${s.turn}`, [s.label, `agent ${info.agent}`, info.model])
 }
 
-export function turnEnd(sessionID: string, info: { step: number; outcome: string; finish?: string }) {
+export function turnEnd(sessionID: string, info: { outcome: string; finish?: string }) {
   if (!enabled()) return
+  const s = scope(sessionID)!
   block(
-    `TURN ${info.step} END`,
-    [scope(sessionID)?.label, info.outcome, info.finish && `finish ${info.finish}`],
+    `TURN ${s.turn} END`,
+    [s.label, info.outcome, info.finish && `finish ${info.finish}`],
     [field("totals", runningLine())],
   )
 }
@@ -1103,7 +1107,7 @@ export function questionReject(input: { id: string }) {
 
 export function subagentStart(input: {
   parentSessionID: string
-  callID: string
+  callID?: string
   sessionID: string
   agent: string
   description: string
@@ -1112,6 +1116,16 @@ export function subagentStart(input: {
   background?: boolean
 }) {
   if (!enabled()) return
+  // A task resumed by id reuses a session this log may not have seen created.
+  if (!scopes.has(input.sessionID)) {
+    counters.sub++
+    scopes.set(input.sessionID, {
+      label: `sub#${counters.sub} ${input.agent}`,
+      turn: 0,
+      turns: 0,
+      tokens: emptyTokens(),
+    })
+  }
   const [parent, turn] = where(input.parentSessionID)
   block(
     "SUBAGENT START",
@@ -1129,7 +1143,7 @@ export function subagentStart(input: {
 
 export function subagentEnd(input: {
   sessionID: string
-  status: "completed" | "error"
+  status: "completed" | "error" | "cancelled"
   result?: string
   error?: unknown
 }) {

@@ -7,6 +7,7 @@ import { asc } from "drizzle-orm"
 import { TodoTable } from "@opencode-ai/core/session/sql"
 import { EventV2Bridge } from "@/event-v2-bridge"
 import { SessionTodo } from "@opencode-ai/schema/session-todo"
+import { SessionLog } from "./log"
 
 export const Info = SessionTodo.Info
 export type Info = SessionTodo.Info
@@ -47,6 +48,7 @@ const layer = Layer.effect(
           }),
         )
         .pipe(Effect.orDie)
+      SessionLog.todo(input.sessionID, input.todos)
       yield* events.publish(Event.Updated, input)
     })
 

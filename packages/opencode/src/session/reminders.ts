@@ -11,6 +11,7 @@ import { Session } from "./session"
 import PROMPT_PLAN from "./prompt/plan.txt"
 import BUILD_SWITCH from "./prompt/build-switch.txt"
 import PLAN_MODE from "./prompt/plan-mode.txt"
+import { SessionLog } from "./log"
 
 export const apply = Effect.fn("SessionReminders.apply")(function* (input: {
   messages: SessionV1.WithParts[]
@@ -33,6 +34,7 @@ export const apply = Effect.fn("SessionReminders.apply")(function* (input: {
         text: PROMPT_PLAN,
         synthetic: true,
       })
+      SessionLog.reminder(input.session.id, { kind: "plan agent", text: PROMPT_PLAN })
     }
     const wasPlan = input.messages.some((msg) => msg.info.role === "assistant" && msg.info.agent === "plan")
     if (wasPlan && input.agent.name === "build") {
@@ -44,6 +46,7 @@ export const apply = Effect.fn("SessionReminders.apply")(function* (input: {
         text: BUILD_SWITCH,
         synthetic: true,
       })
+      SessionLog.reminder(input.session.id, { kind: "switched from plan to build", text: BUILD_SWITCH })
     }
     return input.messages
   }
@@ -64,6 +67,7 @@ export const apply = Effect.fn("SessionReminders.apply")(function* (input: {
       synthetic: true,
     })
     userMessage.parts.push(part)
+    SessionLog.reminder(input.session.id, { kind: "switched from plan to build", text: part.text })
     return input.messages
   }
 
@@ -86,6 +90,7 @@ export const apply = Effect.fn("SessionReminders.apply")(function* (input: {
     synthetic: true,
   })
   userMessage.parts.push(part)
+  SessionLog.reminder(input.session.id, { kind: "plan mode", text: part.text })
   return input.messages
 })
 

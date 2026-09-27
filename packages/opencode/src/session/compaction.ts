@@ -21,6 +21,7 @@ import { ProviderV2 } from "@opencode-ai/core/provider"
 import { ModelV2 } from "@opencode-ai/core/model"
 import { buildPrompt } from "@opencode-ai/core/session/compaction"
 import { SessionCompactionEvent } from "@opencode-ai/schema/session-compaction-event"
+import { SessionLog } from "./log"
 
 export const Event = SessionCompactionEvent
 
@@ -304,6 +305,13 @@ const layer = Layer.effect(
 
       yield* Effect.logInfo("found", { pruned, total })
       if (pruned > PRUNE_MINIMUM) {
+        SessionLog.erase(input.sessionID, {
+          parts: toPrune.map((part) => ({
+            callID: part.callID,
+            tool: part.tool,
+            tokens: part.state.status === "completed" ? Token.estimate(part.state.output) : 0,
+          })),
+        })
         for (const part of toPrune) {
           if (part.state.status === "completed") {
             part.state.time.compacted = Date.now()
@@ -366,6 +374,14 @@ const layer = Layer.effect(
         messages: history.filter((_, index) => !hidden.has(index)),
         cfg,
         model,
+      })
+      SessionLog.compaction(input.sessionID, {
+        stage: "start",
+        messages: history.length,
+        head: selected.head.length,
+        tail: selected.tail_start_id,
+        previousSummary: previousSummary !== undefined,
+        model: `${model.providerID}/${model.api.id}`,
       })
       const compacting: { context: string[]; prompt: string | undefined } = { context: [], prompt: undefined }
       const msgs = structuredClone(selected.head)
@@ -447,6 +463,7 @@ const layer = Layer.effect(
         }).toObject()
         processor.message.finish = "error"
         yield* session.updateMessage(processor.message)
+        SessionLog.compaction(input.sessionID, { stage: "end", result: "stop", error: processor.message.error })
         return "stop"
       }
 
@@ -522,6 +539,15 @@ const layer = Layer.effect(
         }
       }
 
+      SessionLog.compaction(input.sessionID, {
+        stage: "end",
+        result: processor.message.error ? "stop" : result,
+        tokens: {
+          input: processor.message.tokens.input + processor.message.tokens.cache.read,
+          output: processor.message.tokens.output + processor.message.tokens.reasoning,
+        },
+        error: processor.message.error,
+      })
       if (processor.message.error) return "stop"
       if (result === "continue") {
         yield* events.publish(Event.Compacted, { sessionID: input.sessionID })
@@ -536,6 +562,7 @@ const layer = Layer.effect(
       auto: boolean
       overflow?: boolean
     }) {
+      SessionLog.compaction(input.sessionID, { stage: "scheduled", auto: input.auto, overflow: input.overflow })
       const msg = yield* session.updateMessage({
         id: MessageID.ascending(),
         role: "user",

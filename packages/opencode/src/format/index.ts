@@ -10,6 +10,7 @@ import { Config } from "@/config/config"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { errorMessage } from "@/util/error"
 import * as Formatter from "./formatter"
+import { SessionLog } from "@/session/log"
 
 export const Status = Schema.Struct({
   name: Schema.String,
@@ -103,6 +104,13 @@ const layer = Layer.effect(
                     }).pipe(Effect.as(undefined)),
                   ),
                 )
+              SessionLog.format({
+                file: filepath,
+                formatter: item.name,
+                command: replaced,
+                exitCode: result?.exitCode,
+                error: result ? undefined : "the formatter failed to start",
+              })
               if (result && result.exitCode !== 0) {
                 yield* Effect.logError("failed", {
                   command: cmd,

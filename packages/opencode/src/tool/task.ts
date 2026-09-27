@@ -14,6 +14,7 @@ import { Effect, Exit, Schema, Scope } from "effect"
 import { EffectBridge } from "@/effect/bridge"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { Database } from "@opencode-ai/core/database/database"
+import { SessionLog } from "@/session/log"
 
 export interface TaskPromptOps {
   cancel(sessionID: SessionID): Effect.Effect<void>
@@ -193,6 +194,16 @@ export const TaskTool = Tool.define(
         title: params.description,
         metadata,
       })
+      SessionLog.subagentStart({
+        parentSessionID: ctx.sessionID,
+        callID: ctx.callID,
+        sessionID: nextSession.id,
+        agent: next.name,
+        description: params.description,
+        prompt: params.prompt,
+        permission: nextSession.permission,
+        background: runInBackground,
+      })
 
       const ops = ctx.extra?.promptOps as TaskPromptOps
       if (!ops) return yield* Effect.fail(new Error("TaskTool requires promptOps in ctx.extra"))
@@ -223,6 +234,20 @@ export const TaskTool = Tool.define(
         }
         return result.parts.findLast((item) => item.type === "text")?.text ?? ""
       })
+
+      // The sub-agent's result (or failure) as the parent receives it.
+      const loggedTask = () =>
+        runTask().pipe(
+          Effect.tap((text) =>
+            Effect.sync(() => SessionLog.subagentEnd({ sessionID: nextSession.id, status: "completed", result: text })),
+          ),
+          Effect.tapError((error) =>
+            Effect.sync(() => SessionLog.subagentEnd({ sessionID: nextSession.id, status: "error", error })),
+          ),
+          Effect.onInterrupt(() =>
+            Effect.sync(() => SessionLog.subagentEnd({ sessionID: nextSession.id, status: "cancelled" })),
+          ),
+        )
 
       const inject = Effect.fn("TaskTool.injectBackgroundResult")(function* (
         state: "completed" | "error",
@@ -264,7 +289,7 @@ export const TaskTool = Tool.define(
         )
       })
 
-      if (yield* background.extend({ id: nextSession.id, run: runTask() })) {
+      if (yield* background.extend({ id: nextSession.id, run: loggedTask() })) {
         return {
           title: params.description,
           metadata: {
@@ -293,7 +318,7 @@ export const TaskTool = Tool.define(
           }),
           notify(nextSession.id),
         ]),
-        run: runTask().pipe(Effect.onInterrupt(() => ops.cancel(nextSession.id))),
+        run: loggedTask().pipe(Effect.onInterrupt(() => ops.cancel(nextSession.id))),
       })
 
       function backgroundResult() {

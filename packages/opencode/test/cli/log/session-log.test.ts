@@ -192,4 +192,94 @@ describe("session log contents", () => {
       }),
     60_000,
   )
+
+  cliIt.concurrent(
+    "records a sub-agent's whole run inside the task call that started it",
+    ({ llm, opencode, logDir }) =>
+      Effect.gen(function* () {
+        yield* llm.tool("task", {
+          description: "Find the config",
+          prompt: "Look for the config file and report its path.",
+          subagent_type: "general",
+        })
+        yield* llm.text("it is in ./config.json") // the sub-agent's reply
+        yield* llm.text("done") // the main agent, after the task returns
+        const result = yield* opencode.run("delegate", { extraArgs: ["--dangerously-skip-permissions"] })
+        opencode.expectExit(result, 0)
+
+        const log = latest(logDir)
+        const order = [
+          /── TOOL #1 ── main · turn 1 · task call_1\n/,
+          /── SESSION ── sub#1 general\n  id          ses_\w+\n  parent      ses_\w+ \(main\)\n/,
+          /── SUBAGENT START ── sub#1 general · from main · turn 1 · call_1\n(?:.*\n)*?  prompt\n    Look for the config file and report its path\.\n/,
+          /── USER PROMPT ── sub#1 general · before turn 1\n/,
+          /── TURN 1 ── sub#1 general · agent general · test\/test-model\n/,
+          /── REQUEST #\d+ ── sub#1 general · turn 1 · purpose general\n/,
+          /── RESPONSE #\d+ SUMMARY ── sub#1 general · turn 1 · purpose general · finish stop/,
+          /── SUBAGENT END ── sub#1 general · completed\n  totals      turns 1 · in \d+ [^\n]*\n  result\n    it is in \.\/config\.json\n/,
+          /── TOOL #1 END ── main · turn 1 · task call_1 · ok · /,
+          /── TURN 2 ── main · agent build/,
+        ]
+        let at = 0
+        for (const pattern of order) {
+          const match = pattern.exec(log.slice(at))
+          expect(match, `${pattern} after offset ${at}`).not.toBeNull()
+          at += match!.index + match![0].length
+        }
+        // The sub-agent's turn counts in the session's totals.
+        expect(log).toMatch(/\n  turns       3   /)
+      }),
+    60_000,
+  )
+
+  cliIt.concurrent(
+    "records a forced compaction from the overflow that triggered it to the summary",
+    ({ llm, opencode, logDir }) =>
+      Effect.gen(function* () {
+        // The test model has a 100k context and 10k output, so 90k usable.
+        yield* llm.text("a long answer", { usage: { input: 95_000, output: 10 } })
+        yield* llm.text("Summary: the user asked for a long answer and got one.")
+        yield* llm.text("continuing after compaction")
+        const result = yield* opencode.run("go", { env: { OPENCODE_DISABLE_AUTOCOMPACT: "0" } })
+        opencode.expectExit(result, 0)
+
+        const log = latest(logDir)
+        expect(log).toMatch(
+          /── OVERFLOW ── main · turn 1 · reached by this response\n  tokens      95,010\n  usable      90,000 \(compaction threshold\)\n/,
+        )
+        expect(log).toMatch(/── COMPACTION SCHEDULED ── main · turn 1 · auto\n/)
+        expect(log).toMatch(/── COMPACTION START ── main · turn 1 · test\/test-model\n  messages    \d+ in history/)
+        expect(log).toMatch(/── REQUEST #\d+ ── main · turn 1 · purpose compaction\n/)
+        expect(log).toMatch(
+          /── RESPONSE #\d+ SUMMARY ── main · turn 1 · purpose compaction · finish stop · continue\n(?:.*\n)*?  text\n    Summary: the user asked for a long answer and got one\.\n/,
+        )
+        expect(log).toMatch(/── COMPACTION END ── main · turn 1 · continue\n/)
+        // The compaction pass is not a turn: the next agent call is turn 2.
+        expect(log).toMatch(/── TURN 2 ── main · agent build · test\/test-model\n/)
+        expect(log).not.toContain("── TURN 3 ──")
+        expect(log).toMatch(/compactions 1 /)
+      }),
+    60_000,
+  )
+
+  cliIt.concurrent(
+    "records the todo list each time it is written",
+    ({ llm, opencode, logDir }) =>
+      Effect.gen(function* () {
+        yield* llm.tool("todowrite", {
+          todos: [
+            { content: "Write the parser", status: "in_progress", priority: "high" },
+            { content: "Add tests", status: "pending", priority: "medium" },
+          ],
+        })
+        yield* llm.text("planned")
+        const result = yield* opencode.run("plan it", { extraArgs: ["--dangerously-skip-permissions"] })
+        opencode.expectExit(result, 0)
+
+        expect(latest(logDir)).toMatch(
+          /── TODO ── main · turn 1 · 2 items\n  \[in_progress\] \(high\) Write the parser\n  \[pending\] \(medium\) Add tests\n/,
+        )
+      }),
+    60_000,
+  )
 })

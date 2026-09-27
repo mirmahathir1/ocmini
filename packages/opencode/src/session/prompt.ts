@@ -1064,7 +1064,7 @@ const layer = Layer.effect(
             yield* sessions.updateMessage(msg)
           })
 
-          SessionLog.turnStart(sessionID, { step, agent: agent.name, model: `${model.providerID}/${model.api.id}` })
+          SessionLog.turnStart(sessionID, { agent: agent.name, model: `${model.providerID}/${model.api.id}` })
           const handle = yield* processor
             .create({
               assistantMessage: msg,
@@ -1144,7 +1144,7 @@ const layer = Layer.effect(
               model,
               toolChoice: format.type === "json_schema" ? "required" : undefined,
             })
-            SessionLog.turnEnd(sessionID, { step, outcome: result, finish: handle.message.finish })
+            SessionLog.turnEnd(sessionID, { outcome: result, finish: handle.message.finish })
 
             if (structured !== undefined) {
               handle.message.structured = structured
