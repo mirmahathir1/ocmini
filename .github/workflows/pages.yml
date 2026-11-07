@@ -1,0 +1,42 @@
+name: Deploy session log to Pages
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - session_log/index.html
+      - session_log/session/**
+      - .github/workflows/pages.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7
+
+      # Turn pages link back to ../../index.html, so the site needs the index
+      # next to the session folder. The raw log and notes stay out of it.
+      - name: Assemble site
+        run: |
+          mkdir _site
+          cp -r session_log/index.html session_log/session _site/
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+
+      - id: deployment
+        uses: actions/deploy-pages@v5
