@@ -113,6 +113,7 @@ where it is, minus its configuration surface.
 | Diagnostics after edit | `src/lsp/`, call sites in `src/tool/{read,write,edit}.ts` | Built-in server table fixed; per-server config removed |
 | Glob, grep | `src/tool/{glob,grep}.ts` | Unchanged |
 | Shell | `src/tool/shell.ts` | Unchanged |
+| Parallel tool calls | tool dispatch in `src/session/{prompt,tools}.ts` | Unchanged — see the note below |
 | Web fetch, web search | `src/tool/{webfetch,websearch}.ts` | Unchanged, subject to §4.6 |
 | Task list | `src/tool/todo.ts`, `src/session/{todo,reminders}.ts` | Unchanged |
 | Sub-agent | `src/tool/task.ts`, `src/agent/` | One level of delegation |
@@ -158,6 +159,13 @@ The LSP *tool* is a separate decision and stays cut. `src/tool/lsp.ts` is 113 li
 `OPENCODE_EXPERIMENTAL_LSP_TOOL`, off by default, and gives the model goto-definition
 rather than diagnostics — grep already covers that ground for §7's tasks. Deleting it does
 not touch the diagnostics path this paragraph protects.
+
+**On parallel tool calls.** Upstream lets the model ask for several tools in one reply and
+runs them at the same time. That stays, and how many to call stays the model's choice.
+Cutting it would cost effort rather than save it, and it would add turns on search-heavy
+work. It would also force edits to `meta.txt` and the tool descriptions, which tell the
+model to call tools in parallel and which §4 wants left alone. A cut that proposes this is
+declined by this paragraph rather than re-argued.
 
 **On the full-screen TUI.** It was the largest row in §2.2 — `packages/tui` at ~32k lines,
 the single biggest payoff left once the non-agent packages and the SDKs were gone — and it
@@ -207,7 +215,6 @@ baseline measurement.
 | The LSP *tool* — goto-definition and friends, not diagnostics | `src/tool/lsp.ts` | ~113 |
 | IDE integration | `src/ide/` | ~54 |
 | Image input | attachment paths in `session/` | — |
-| Parallel tool calls | tool dispatch in `src/session/{prompt,tools}.ts` | — |
 
 Everything in this table is a target, not a promise. A cut that turns out to require
 rewriting is abandoned and recorded as attempted-and-declined, with the reason, in the
@@ -251,24 +258,15 @@ the row is added under the same rule 3 that takes the other surfaces. It earns i
 size too: at ~1.8k lines it is larger than the slash commands, worktree and IDE rows put
 together, and it is a leaf, reached only through two `.command()` lines in `src/index.ts`.
 
-**Two exceptions to that**, and to rule 1. Session persistence and parallel tool calls are
-out of scope as decisions, not as opportunities. Neither may be quietly kept because
-deleting it turned out to be awkward, and if deletion alone will not reach them, a bounded
-refactor is authorised:
-
-- **Session persistence.** Each run starts with an empty conversation and keeps it in
-  memory only — no session store, no listing, no resume. Storage is only ~330 lines but
-  threads through `session/`, so this is the one cut likely to require touching callers
-  rather than deleting files. The refactor is authorised and bounded to `src/storage/` and
-  `src/session/`; it is phase 6's entire job, and T3 passing afterwards is the gate. A
-  build that still writes a session file nobody reads has not made this cut.
-- **Parallel tool calls.** One tool call per turn, executed sequentially; a response
-  requesting several is handled one at a time. Upstream issues them and the model supports
-  them, so unlike every other row in this table, cutting this costs effort rather than
-  saving it, and it will cost turns on search-heavy work. **That is accepted.** It is also
-  the one cut expected to move the §7 acceptance numbers on its own, which is why §7.0's
-  baseline gets re-measured immediately after it rather than treating the rise as a
-  regression.
+**One exception to that**, and to rule 1. Session persistence is out of scope as a decision,
+not as an opportunity. It may not be quietly kept because deleting it turned out to be
+awkward, and if deletion alone will not reach it, a bounded refactor is authorised. Each
+run starts with an empty conversation and keeps it in memory only — no session store, no
+listing, no resume. Storage is only ~330 lines but threads through `session/`, so this is
+the one cut likely to require touching callers rather than deleting files. The refactor is
+authorised and bounded to `src/storage/` and `src/session/`; it is phase 6's entire job,
+and T3 passing afterwards is the gate. A build that still writes a session file nobody
+reads has not made this cut.
 
 ---
 
@@ -308,7 +306,7 @@ once the provider layer starts getting cut.
 | Max output | 131,072 tokens | Same, and `ProviderTransform.maxOutputTokens` |
 | Input modalities | Text, image, and more — ocmini sends text only (§2.2) | Model metadata |
 | Reasoning effort | minimal · low · medium · high · xhigh | Captured request body |
-| Tool calling | Function calling, parallel calls — ocmini uses one at a time (§2.2) | Captured request body |
+| Tool calling | Function calling, parallel calls — ocmini keeps both (§2.1) | Captured request body |
 | Structured output | JSON-schema-guaranteed | `src/tool/json-schema.ts` |
 | Prompt caching | Supported, at zero cost on this tier | Captured response usage block |
 | Web search | **Unconfirmed** — see §4.6 | `webSearchEnabled()` in `src/tool/registry.ts` |
@@ -539,14 +537,7 @@ baseline flakiness rate is worth knowing before it can be blamed on a cut.
 This is the only phase gate that costs quota and produces no code, and it is the one most
 likely to be skipped. Skipping it means every later regression is unattributable.
 
-**Re-measure once, after phase 6.** Cutting parallel tool calls (§2.2) makes the agent take
-more turns to do the same work — that is the known price of the cut, not a defect, and the
-20% bands in §7.1–§7.4 would otherwise fail on it. Re-run T1–T3, record the new numbers as
-the standing baseline, and note the delta in the commit that closes phase 6. This is the
-**only** licensed re-baseline; every other phase is measured against T0. If the sequential
-cut costs more than about a third of the turn budget on T2 or T3, say so here and
-reconsider — the cut is a decision, but a decision that eats the acceptance headroom is
-worth revisiting once, with numbers.
+Every phase is measured against T0. There is no licensed re-baseline.
 
 ### 7.1 T1 — Greenfield build (the headline criterion)
 
@@ -756,7 +747,7 @@ green and every cut in it committed separately (§0.2).
 | 3 | Delete server, share, ACP, IDE, plugin system, MCP, code-mode | ~23k lines gone; tool-output regression clean; T2 passes |
 | 4 | Strip the TUI's configuration surface — themes, keybinding config, pane layout options — keeping `packages/tui` itself (§2.1) | A 20-minute session with no crash; abort works mid-command; T1 passes |
 | 5 | Delete commands, checkpoints, worktree, accounts, control plane; hardcode permission and truncation defaults | T2 and T4 pass; permission suite still green |
-| 6 | Session persistence and storage deleted, conversation held in memory only; tool dispatch made sequential (§2.2) | T3 passes; forced-threshold compaction test passes; **baseline re-measured** (§7.0) |
+| 6 | Session persistence and storage deleted, conversation held in memory only | T3 passes; forced-threshold compaction test passes |
 | 7 | Sweep: dead flags, dead config, dead deps, dead tests, README | **§7.5 size gate met**; `--help` accurate; three consecutive T1 runs pass |
 
 Phases 1 and 3 are where most of the 780k goes, and they are almost entirely `rm -rf`
@@ -774,7 +765,6 @@ and they are where rule 1 earns its place.
 | **Cutting into the agent to hit the size number** — `edit.ts`'s matching cascade and `compaction.ts`'s tool-output erasure are the tempting targets | §4.3 and §5 put them out of bounds; §7.5 says an unreachable number gets amended, not met |
 | Over-cutting the provider to a hardcoded model id | §3.1: one base URL, one key, one model id **from config** — a tier change must stay a config change |
 | Deleting a test suite that was the only coverage of the agent loop | §7.5 names the four areas that must retain coverage |
-| **The sequential-tool-call cut inflates turn counts and masks a real regression underneath** | §7.0: re-baseline once after phase 6 and record the delta; a later rise is then attributable again |
 | Session persistence proves hard to remove and gets quietly kept | §2.2: it is a decision, not an opportunity; a build that still writes a session file has not made the cut |
 | Unattributable regression three phases after the cut that caused it | §7.0 baseline + one cut per commit (§0.2) + per-phase acceptance runs make `git revert` a diagnostic |
 | **Upstream drift** — opencode keeps moving and the fork diverges | The baseline is pinned; merging upstream is a deliberate act, not a habit. After phase 3 the fork has diverged enough that merges are unlikely to be worth it — say so in the README rather than pretending otherwise |
