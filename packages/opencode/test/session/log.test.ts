@@ -152,6 +152,29 @@ describe("session log", () => {
     expect(SessionLog.stats().tokens).toEqual({ input: 9706, cached: 113, output: 65, reasoning: 54 })
   })
 
+  test("labels aux calls as aux, not with the turn in progress", async () => {
+    SessionLog.session({ id: "ses_aux", directory: "/work", title: "t" })
+    SessionLog.turnStart("ses_aux", { agent: "build", model: "m" })
+
+    const send = async (purpose: string) => {
+      const res = await SessionLog.withCall({ sessionID: "ses_aux", purpose }, () =>
+        SessionLog.tap("https://zen.test/v1/responses", { method: "POST", body: "{}" }, async () => new Response("{}")),
+      )
+      await res.text()
+      SessionLog.call("ses_aux", purpose).end({ result: "continue" })
+    }
+    await send("title")
+    await send("build")
+
+    const log = await contents()
+    expect(log).toMatch(/REQUEST #\d+ ── main#2 · aux · purpose title$/m)
+    expect(log).toMatch(/RESPONSE #\d+ ── main#2 · aux · 200/)
+    expect(log).toMatch(/RESPONSE #\d+ SUMMARY ── main#2 · aux · purpose title/)
+    expect(log).toMatch(/REQUEST #\d+ ── main#2 · turn 1 · purpose build$/m)
+    expect(log).toMatch(/RESPONSE #\d+ ── main#2 · turn 1 · 200/)
+    expect(log).toMatch(/RESPONSE #\d+ SUMMARY ── main#2 · turn 1 · purpose build/)
+  })
+
   // A broken log stays off; state is per file, so this can't leak into
   // other tests that point the log elsewhere.
   test("a failed write disables the log with one warning instead of throwing", async () => {

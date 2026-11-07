@@ -615,6 +615,12 @@ const calls = new AsyncLocalStorage<Call>()
 const lastRequest = new Map<string, number>()
 const AUX = new Set(["title", "compaction", "summary"])
 
+// Aux calls run beside the agent's turns, so they say `aux`, not the turn in progress.
+function whereCall(sessionID: string | undefined, purpose: string) {
+  const [label, turn] = where(sessionID)
+  return [label, AUX.has(purpose) ? "aux" : turn]
+}
+
 // Runs `fn` with the session and purpose attached, so the fetch hook — which
 // sees only a URL and a body — can say who made the request.
 export function withCall<T>(call: Call | undefined, fn: () => T): T {
@@ -675,7 +681,7 @@ export async function tap(
   const purpose = call?.purpose ?? "unknown"
   if (!call || AUX.has(purpose)) totals.aux++
   if (call) lastRequest.set(`${call.sessionID}|${purpose}`, n)
-  const [label, turn] = where(call?.sessionID)
+  const [label, turn] = whereCall(call?.sessionID, purpose)
 
   const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url
   const method = init?.method ?? (input instanceof Request ? input.method : "GET")
@@ -874,7 +880,7 @@ export function call(sessionID: string, purpose: string) {
       const n = lastRequest.get(`${sessionID}|${purpose}`)
       block(
         n ? `RESPONSE #${n} SUMMARY` : "RESPONSE SUMMARY",
-        [...where(sessionID), `purpose ${purpose}`, `finish ${state.finish ?? "none"}`, outcome.result],
+        [...whereCall(sessionID, purpose), `purpose ${purpose}`, `finish ${state.finish ?? "none"}`, outcome.result],
         [
           field("took", secs(Date.now() - state.started)),
           ...(state.responseID ? [field("response", state.responseID)] : []),

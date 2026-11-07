@@ -71,7 +71,9 @@ grep -n '── RETRY\|── ERROR\|── LOG' latest.log
 **Scope** names the session that caused the block: `main` for the top-level session
 (`main#2`, … if the process starts more), and `sub#1 explore`, `sub#2 …` for
 sub-agents. Turn numbers count agent turns in that scope. A pass through the prompt
-loop that only compacts or runs a queued subtask doesn't count as a turn.
+loop that only compacts or runs a queued subtask doesn't count as a turn. Requests that
+aren't agent turns (`title`, `compaction` and `summary`) show `aux` in place of the turn
+number. The example log was written before this, so its title request says `turn 1`.
 
 ### Block kinds
 

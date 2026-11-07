@@ -294,9 +294,9 @@ describe("session log contents", () => {
         )
         expect(log).toMatch(/── COMPACTION SCHEDULED ── main · turn 1 · auto\n/)
         expect(log).toMatch(/── COMPACTION START ── main · turn 1 · test\/test-model\n  messages    \d+ in history/)
-        expect(log).toMatch(/── REQUEST #\d+ ── main · turn 1 · purpose compaction\n/)
+        expect(log).toMatch(/── REQUEST #\d+ ── main · aux · purpose compaction\n/)
         expect(log).toMatch(
-          /── RESPONSE #\d+ SUMMARY ── main · turn 1 · purpose compaction · finish stop · continue\n(?:.*\n)*?  text\n    Summary: the user asked for a long answer and got one\.\n/,
+          /── RESPONSE #\d+ SUMMARY ── main · aux · purpose compaction · finish stop · continue\n(?:.*\n)*?  text\n    Summary: the user asked for a long answer and got one\.\n/,
         )
         expect(log).toMatch(/── COMPACTION END ── main · turn 1 · continue\n/)
         // The compaction pass is not a turn: the next agent call is turn 2.
