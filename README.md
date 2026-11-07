@@ -1,172 +1,178 @@
-<p align="center">
-  <a href="https://opencode.ai">
-    <picture>
-      <source srcset="packages/console/app/src/asset/logo-ornate-dark.svg" media="(prefers-color-scheme: dark)">
-      <source srcset="packages/console/app/src/asset/logo-ornate-light.svg" media="(prefers-color-scheme: light)">
-      <img src="packages/console/app/src/asset/logo-ornate-light.svg" alt="OpenCode logo">
-    </picture>
-  </a>
-</p>
-<p align="center">The open source AI coding agent.</p>
-<p align="center">
-  <a href="https://opencode.ai/discord"><img alt="Discord" src="https://img.shields.io/discord/1391832426048651334?style=flat-square&label=discord" /></a>
-  <a href="https://www.npmjs.com/package/opencode-ai"><img alt="npm" src="https://img.shields.io/npm/v/opencode-ai?style=flat-square" /></a>
-  <a href="https://github.com/anomalyco/opencode/actions/workflows/publish.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/anomalyco/opencode/publish.yml?style=flat-square&branch=dev" /></a>
-</p>
+# ocmini
 
-<p align="center">
-  <a href="README.md">English</a> |
-  <a href="README.zh.md">简体中文</a> |
-  <a href="README.zht.md">繁體中文</a> |
-  <a href="README.ko.md">한국어</a> |
-  <a href="README.de.md">Deutsch</a> |
-  <a href="README.es.md">Español</a> |
-  <a href="README.fr.md">Français</a> |
-  <a href="README.it.md">Italiano</a> |
-  <a href="README.da.md">Dansk</a> |
-  <a href="README.ja.md">日本語</a> |
-  <a href="README.pl.md">Polski</a> |
-  <a href="README.ru.md">Русский</a> |
-  <a href="README.bs.md">Bosanski</a> |
-  <a href="README.ar.md">العربية</a> |
-  <a href="README.no.md">Norsk</a> |
-  <a href="README.br.md">Português (Brasil)</a> |
-  <a href="README.th.md">ไทย</a> |
-  <a href="README.tr.md">Türkçe</a> |
-  <a href="README.uk.md">Українська</a> |
-  <a href="README.bn.md">বাংলা</a> |
-  <a href="README.gr.md">Ελληνικά</a> |
-  <a href="README.vi.md">Tiếng Việt</a>
-</p>
+**ocmini exists to answer one question: what does a coding agent actually do?**
 
-[![OpenCode Terminal UI](packages/web/src/assets/lander/screenshot.png)](https://opencode.ai)
+It's a stripped-down fork of [OpenCode](https://github.com/anomalyco/opencode) that
+runs one model and records everything that happens: every prompt, every reply, every
+tool call and its result. You can read an agent's work step by step instead of
+guessing at it.
 
----
+**[Open the debug trace](https://mirmahathir.com/ocmini/)** to see one real run. The
+agent was asked to build `tsum`, a small Python CLI that summarizes CSV files. It
+finished in 25 turns and just under 8 minutes, with all 30 of its tests passing.
 
-### Installation
+## How an agent works
 
-```bash
-# YOLO
-curl -fsSL https://opencode.ai/install | bash
+An agent is a loop around a model. The model can't touch your files or run anything.
+It can only reply with text or ask for a tool to be run. Ordinary code does the rest:
 
-# Package managers
-npm i -g opencode-ai@latest        # or bun/pnpm/yarn
-scoop install opencode             # Windows
-choco install opencode             # Windows
-brew install anomalyco/tap/opencode # macOS and Linux (recommended, always up to date)
-brew install opencode              # macOS and Linux (official brew formula, updated less)
-sudo pacman -S opencode            # Arch Linux (Stable)
-paru -S opencode-bin               # Arch Linux (Latest from AUR)
-mise use -g opencode               # Any OS
-nix run nixpkgs#opencode           # or github:anomalyco/opencode for latest dev branch
+```text
+your task --> build the prompt --> model --> did it ask for a tool?
+                     ^                           |              |
+                     |                          yes             no
+                     |                           v              v
+                     +--- add the result <-- run the tool    final answer
 ```
 
-> [!TIP]
-> Remove versions older than 0.1.x before installing.
+One trip around this loop is a **turn**. The loop itself is in
+[prompt.ts](packages/opencode/src/session/prompt.ts).
 
-### Session logs
+The `tsum` run shows what that means in practice:
 
-Every session writes a log, and you choose where. `--log-dir` is required by
-every command that starts a session, and there is no default:
+- **The model remembers nothing.** Nothing is stored between requests, so each one
+  resends the whole conversation. The first build request was 57,637 bytes and the
+  last was 209,680.
+- **Caching makes that affordable.** Each prompt starts with the previous one, so
+  645,385 of the run's 681,843 input tokens came from the cache.
+- **The model asks and the agent acts.** Each tool call passes a permission check and
+  runs, then its output becomes text in the next prompt.
+- **Not every model call is a turn.** A separate request generates the session title,
+  which is why the run has 26 requests for 25 turns.
+- **Your task is a tiny part of the prompt.** This is the last prompt of the run, by
+  size:
+
+| Part of the prompt | Share |
+|---|---|
+| The model's encrypted reasoning | 51% |
+| System prompt | 16% |
+| The model's tool calls | 15% |
+| Tool definitions | 12% |
+| Tool results | 6% |
+| Your task | 0.3% |
+
+## How to read the debug trace
+
+The [debug trace](https://mirmahathir.com/ocmini/) is that one run, split into pages:
+
+| Page | What it shows |
+|---|---|
+| **Session setup** | The version, the working directory and how the session started |
+| **User prompt** | The task, word for word |
+| **Session title** | A side request that names the session. It runs alongside the agent, so it isn't part of any turn |
+| **Turn 01 to 25** | Everything that happened in that turn. **Previous turn** and **Next turn** step through them |
+| **Final summary** | Exit status, time, tokens and tool counts |
+
+### Reading a turn
+
+Each turn page opens with a diagram of what happened, in time order. Each row is one
+step, each column is an actor, and each arrow shows who acted on whom. The actors are
+ocmini, the model and the tool, plus `you` on Turn 19, the one time ocmini stops to ask
+for permission. Times are when ocmini saw each step. Click a row to open the log entry
+it came from.
+
+Below the diagram is the log itself, a list of timestamped entries. Click one to open
+it. In `[21:06:21.317 +19.044s]`, the second time counts from the start of the process.
+
+| Entry | What it tells you |
+|---|---|
+| `TURN n` | The turn begins, with the agent and model it uses |
+| `REQUEST #n` | The exact prompt sent to the model |
+| `RESPONSE #n SUMMARY` | The model's reply in short form: its text, tool calls, finish reason and token use. Read this first |
+| `RESPONSE #n` | The same reply as the raw stream, event by event |
+| `TOOL #n` | A tool call and its arguments |
+| `PERMISSION` | Whether the call was allowed, and by which rule |
+| `TOOL #n END` | The tool's output, exactly as the model receives it |
+| `TODO` | The agent's task list after an update |
+| `TURN n END` | The turn ends, with its finish reason and running totals |
+
+Turn 1 also has `AGENT`, `CONTEXT` and `MODEL` entries. They show the tools on offer,
+the instructions and skills loaded, and the model settings.
+
+Watch for two things:
+
+- **Check `finish`, not `continue`.** Every `TURN n END` says `continue`, including
+  the last one. `finish tool-calls` means the model asked for a tool, so another turn
+  follows. `finish stop` means it's done.
+- **Entries are in the order they were written, not the order things happened.** A
+  `RESPONSE` entry is written only when its stream ends, and tools can start before
+  that. So in Turn 02, `TOOL #2` sits above `RESPONSE #3`, the reply that asked for
+  it. The diagram avoids this by splitting each reply into its moments, which is why
+  one `RESPONSE` can appear on several rows.
+
+### Reading a prompt
+
+The prompt is the `input` list inside a `REQUEST` entry's `body`.
+
+1. **Click Show prompts** in the toolbar. This opens each request down to its `input`
+   list.
+2. **Read the labels.** Each item says who wrote it:
+
+   | Label | Written by |
+   |---|---|
+   | `ocmini · system prompt`, `ocmini · title prompt`, `ocmini · title instruction` | ocmini |
+   | `you · task prompt` | The user |
+   | `model · bash call`, `model · reasoning (encrypted)` | The model |
+   | `tool · bash result` | The tool that ran |
+
+   Trust these labels over the JSON `role`. On the **Session title** page,
+   `Generate a title for this conversation:` has the role `user`, but ocmini wrote it.
+
+3. **Look for red.** Red text isn't hardcoded: it was filled in at runtime. That covers
+   the task, the model's output, tool results, the working directory, the date, and any
+   `AGENTS.md` files and skills that were loaded. Everything else is fixed wording from
+   ocmini's source.
+4. **Click a string to read it.** Long strings run off the screen in the tree, so this
+   is the way to read the system prompt. The popup shows real line breaks and keeps the
+   red.
+5. **Click New this turn only** to hide what the previous prompt already contained.
+   What's left is what the last turn added. **Show full prompts** brings the rest back.
+
+Below `input`, the `tools` list holds the 12 tool definitions the model can call.
+Labels and red appear only inside `REQUEST` entries. Reasoning items are red but
+unreadable, because the provider encrypts them and the agent passes them back
+unopened.
+
+### Try it: follow one step
+
+1. Open [Turn 02](https://mirmahathir.com/ocmini/session/turns/turn_02.html) and click
+   **New this turn only**. `REQUEST #3` has four new items: two reasoning items, a
+   `read` call and its result. That's everything turn 1 added.
+2. Open `RESPONSE #3 SUMMARY`. The model asks `bash` to run `pwd && ls -la`, and
+   `finish tool-calls` says the loop goes on.
+3. Open `PERMISSION` and `TOOL #2 END`. The call is allowed, and the output is what the
+   model will see.
+4. Open [Turn 03](https://mirmahathir.com/ocmini/session/turns/turn_03.html) and click
+   **New this turn only** again. That `bash` call and its output are now in the prompt.
+
+## Run it yourself
+
+ocmini talks to one model, Muse Spark 1.3 Contributor Free on OpenCode Zen (see
+[§3 of the spec](ocmini-spec.md#3-fixed-platform)).
 
 ```bash
+bun install
 bun dev --log-dir ~/ocmini-logs .                     # interactive
 bun dev run --log-dir ~/ocmini-logs "fix the tests"   # one-shot
 ```
 
-A relative folder is taken from the directory you ran the command in, and it
-is created if it doesn't exist. If it can't be written, ocmini stops before
-starting the session. `--help` and `--version` don't need the flag.
+`--log-dir` is required. Each run writes one plain-text log, and `latest.log` in that
+folder points to the newest. You get the log file, not a website: the debug trace is
+one log split into pages by hand.
 
-Each run writes one file, `<UTC time>-<pid>.log`, and `latest.log` in the same
-folder points at the newest one. ocmini never prints the path. Nothing is ever
-deleted, and a long run can produce tens of megabytes, because every request
-resends the whole conversation.
+## Where to go next
 
-The file is plain text. Every entry starts with a header line such as
-`[14:03:11.932 +0.728s] ── REQUEST #2 ── main · turn 1 · purpose build`, so
-`grep '── TOOL'` or `grep '── RETRY'` lists one kind of entry. It records:
-
-- every request to the model and every streamed event of its response,
-  exactly as sent and received, plus a summary of each reply
-- every tool call, with the output the model was given
-- permission checks and your answers, and questions the model asked with
-  your answers
-- retries, rate limits and errors
-- sub-agents, compaction and todo lists
-- a footer with the run's turns, tokens, tool calls and questions
-
-Secrets are masked in the log's copy: API keys and auth headers, values of
-environment variables named like `*KEY*`, `*TOKEN*`, `*SECRET*` or
-`*PASSWORD*`, well-known token formats, private keys, and `NAME=value` secrets.
-This is pattern matching and can miss things. Everything else is logged in
-full: prompts, file contents, command output. On the Contributor Free tier,
-apart from the masked secrets, the log holds exactly what was sent to zen.
-
-For acceptance runs (`ocmini-spec.md` §7), keep the log folder outside the
-task's working directory, so the logs don't show up in the checks for files
-the run modified.
-
-### Desktop App (BETA)
-
-OpenCode is also available as a desktop application. Download directly from the [releases page](https://github.com/anomalyco/opencode/releases) or [opencode.ai/download](https://opencode.ai/download).
-
-| Platform              | Download                           |
-| --------------------- | ---------------------------------- |
-| macOS (Apple Silicon) | `opencode-desktop-mac-arm64.dmg`   |
-| macOS (Intel)         | `opencode-desktop-mac-x64.dmg`     |
-| Windows               | `opencode-desktop-windows-x64.exe` |
-| Linux                 | `.deb`, `.rpm`, or `.AppImage`     |
-
-```bash
-# macOS (Homebrew)
-brew install --cask opencode-desktop
-# Windows (Scoop)
-scoop bucket add extras; scoop install extras/opencode-desktop
-```
-
-#### Installation Directory
-
-The install script respects the following priority order for the installation path:
-
-1. `$OPENCODE_INSTALL_DIR` - Custom installation directory
-2. `$XDG_BIN_DIR` - XDG Base Directory Specification compliant path
-3. `$HOME/bin` - Standard user binary directory (if it exists or can be created)
-4. `$HOME/.opencode/bin` - Default fallback
-
-```bash
-# Examples
-OPENCODE_INSTALL_DIR=/usr/local/bin curl -fsSL https://opencode.ai/install | bash
-XDG_BIN_DIR=$HOME/.local/bin curl -fsSL https://opencode.ai/install | bash
-```
-
-### Agents
-
-OpenCode includes two built-in agents you can switch between with the `Tab` key.
-
-- **build** - Default, full-access agent for development work
-- **plan** - Read-only agent for analysis and code exploration
-  - Denies file edits by default
-  - Asks permission before running bash commands
-  - Ideal for exploring unfamiliar codebases or planning changes
-
-Also included is a **general** subagent for complex searches and multistep tasks.
-This is used internally and can be invoked using `@general` in messages.
-
-Learn more about [agents](https://opencode.ai/docs/agents).
-
-### Documentation
-
-For more info on how to configure OpenCode, [**head over to our docs**](https://opencode.ai/docs).
-
-### Contributing
-
-If you're interested in contributing to OpenCode, please read our [contributing docs](./CONTRIBUTING.md) before submitting a pull request.
-
-### Building on OpenCode
-
-If you are working on a project that's related to OpenCode and is using "opencode" as part of its name, for example "opencode-dashboard" or "opencode-mobile", please add a note to your README to clarify that it is not built by the OpenCode team and is not affiliated with us in any way.
-
----
-
-**Join our community** [Discord](https://discord.gg/opencode) | [X.com](https://x.com/opencode)
+- [ocmini-spec.md](ocmini-spec.md): what ocmini keeps, what it removes and how the
+  result is tested
+- [original_opencode_readme.md](original_opencode_readme.md): the README this fork
+  started from, plus notes on session logs. Some of its images and links point to parts
+  removed from this fork
+- [session_log/README.md](session_log/README.md): the full log format, every entry
+  type and how the logger works
+- Findings from reading the trace:
+  [what a turn is](session_log/findings/turns.md),
+  [encrypted reasoning](session_log/findings/encrypted_content.md) and
+  [title generation](session_log/findings/title_generation.md)
+- The code: [prompt.ts](packages/opencode/src/session/prompt.ts) runs the loop,
+  [processor.ts](packages/opencode/src/session/processor.ts) handles each model reply,
+  [system.ts](packages/opencode/src/session/system.ts) builds the system prompt and
+  [tool/](packages/opencode/src/tool/) holds the tools
