@@ -6,10 +6,10 @@ turns. In this session, the title request is labeled `turn 1`, but that label re
 the session's current turn when the request started. It does not make title
 generation a step in the build agent's execution.
 
-This distinction explains something initially confusing: the title request appears
-in [turn_01.html](../session/turns/turn_01.html), while its response appears in
-[turn_02.html](../session/turns/turn_02.html). Neither its label nor the file holding
-its response determines whether it counts as a turn.
+This distinction explains something initially confusing: in the raw log, the title
+request sits inside turn 1 and its response sits inside turn 2. Neither its label nor
+its position determines whether it counts as a turn. The split pages now keep it out
+of both turns, on its own [session title page](../session/02_session_title.html).
 
 ## What the title request does
 
@@ -33,18 +33,18 @@ not call `SessionLog.turnStart(...)` or `SessionLog.turnEnd(...)`.
 
 ## How it overlaps the first two turns
 
-The timestamps in the two HTML files show the overlap directly. These are the
-local times printed in the log:
+The timestamps show the overlap directly. These are the local times printed in the
+log:
 
 | Time | Event | File |
 |---|---|---|
 | `21:06:18.592` | Build turn 1 starts. | `turn_01.html` |
-| `21:06:18.636` | Request #1 starts with `purpose title`. | `turn_01.html` |
+| `21:06:18.636` | Request #1 starts with `purpose title`. | `02_session_title.html` |
 | `21:06:19.299` | Request #2 starts with `purpose build`. | `turn_01.html` |
 | `21:06:21.306` | Build turn 1 ends after a directory-read tool call. | `turn_01.html` |
 | `21:06:21.307` | Build turn 2 starts. | `turn_02.html` |
 | `21:06:21.317` | Request #3 starts with `purpose build`. | `turn_02.html` |
-| `21:06:21.415` | Response #1 is logged after the title response stream ends. | `turn_02.html` |
+| `21:06:21.415` | Response #1 is logged after the title response stream ends. | `02_session_title.html` |
 
 The build agent starts its first request and then its second turn while the title
 request is still running. It does not wait for title generation to finish before
@@ -54,14 +54,15 @@ The code explains this behavior: the prompt loop launches title generation on it
 first iteration using `Effect.forkIn(scope)`, which allows it to run concurrently
 with the rest of the loop.
 
-## Why the title response still says `turn 1`
+## Why the title response says `turn 1`
 
-In [log.ts](../../packages/opencode/src/session/log.ts), `tap(...)` captures the
-session label and current turn when an HTTP request begins. It retains those
-values in the pending response's metadata.
+When this log was written, `tap(...)` in
+[log.ts](../../packages/opencode/src/session/log.ts) captured the session label and
+current turn when an HTTP request began. It retained those values in the pending
+response's metadata.
 
-For request #1, the captured values are `main` and `turn 1`. When the title stream
-finishes, the logger reuses them:
+For request #1, the captured values were `main` and `turn 1`. When the title stream
+finished, the logger reused them:
 
 ```text
 [21:06:21.415 +19.142s] ── RESPONSE #1 ── main · turn 1 · 200 OK · ttfb 761ms
@@ -69,22 +70,27 @@ finishes, the logger reuses them:
 
 The `turn 1` label is therefore an association with the request's starting context.
 It is not a statement that the title request advanced the build agent's turn
-counter, and it is not changed to `turn 2` just because the response finishes later.
+counter, and it did not change to `turn 2` just because the response finished later.
 
-## Why its response is stored in `turn_02.html`
+The logger has since changed. Title, compaction and summary calls now say `aux`
+instead of a turn number. This run's log keeps the old label, because the log text
+isn't rewritten.
+
+## Why its response landed in turn 2
 
 The original session log is one file. The HTML files are a manual split of that
 log, as described in the [session log README](../README.md).
 
 The logger accumulates a response stream and writes its response block when the
 stream finishes, errors, or is cancelled. By the time the title response block was
-written, turn 2 had already started. That places the block in the portion of the
-log saved as `turn_02.html`.
+written, turn 2 had already started. That places the block in turn 2's part of the
+raw log.
 
-I should therefore treat these files as slices of the recorded timeline. A file
-can contain the completion of background work started during an earlier turn.
-Matching `REQUEST #1` with `RESPONSE #1` is more reliable than assuming every block
-in a file belongs to that file's numbered turn.
+I should therefore treat the raw log as a recorded timeline. A stretch of it can
+contain the completion of background work started during an earlier turn. Matching
+`REQUEST #1` with `RESPONSE #1` is more reliable than assuming every block belongs
+to the turn it sits in. The split pages now make that match for you by keeping the
+title's entries together on one page.
 
 ## The totals confirm the distinction
 

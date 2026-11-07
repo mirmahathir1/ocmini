@@ -1,0 +1,670 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>02_session_title.log</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <style id="json-fold-style">
+    .json-fold-toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: .4rem;
+      padding: .45rem .75rem;
+      border-bottom: 1px solid var(--bs-border-color, #dee2e6);
+      background: rgba(255, 255, 255, .96);
+      backdrop-filter: blur(4px);
+    }
+    .json-fold-toolbar button {
+      border: 1px solid var(--bs-border-color, #ced4da);
+      border-radius: .35rem;
+      padding: .2rem .55rem;
+      background: var(--bs-body-bg, #fff);
+      color: var(--bs-body-color, #212529);
+      font: 12px/1.4 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      cursor: pointer;
+    }
+    .json-fold-toolbar button:hover {
+      background: var(--bs-tertiary-bg, #f8f9fa);
+    }
+    .log-entry + .log-entry {
+      border-top: 1px solid var(--bs-border-color, #dee2e6);
+    }
+    .log-entry > summary {
+      padding: .75rem 1rem;
+      background: var(--bs-body-bg, #fff);
+      color: var(--bs-body-color, #212529);
+      font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      cursor: pointer;
+    }
+    .log-entry > summary:hover {
+      background: var(--bs-tertiary-bg, #f8f9fa);
+    }
+    .log-entry > summary:focus-visible {
+      outline: 2px solid #0b5ed7;
+      outline-offset: -2px;
+    }
+    .log-entry-body {
+      margin: 0;
+      padding: 0 1rem 1rem;
+      overflow: auto;
+      background: var(--bs-body-bg, #fff);
+      color: var(--bs-body-color, #212529);
+      font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      white-space: pre;
+      tab-size: 4;
+    }
+    .json-tree {
+      display: inline-block;
+      min-width: max-content;
+      vertical-align: top;
+      --json-indent: 1.4rem;
+    }
+    .json-tree-node {
+      display: inline-block;
+      vertical-align: top;
+    }
+    .json-tree-node > summary {
+      display: inline-block;
+      cursor: pointer;
+      list-style: none;
+      user-select: none;
+      border-radius: 2px;
+      padding: 0 .12rem;
+    }
+    .json-tree-node > summary::-webkit-details-marker { display: none; }
+    .json-tree-node > summary::before {
+      content: "\25B8";
+      display: inline-block;
+      width: 1em;
+      margin-right: .15rem;
+      color: #6c757d;
+    }
+    .json-tree-node[open] > summary::before { content: "\25BE"; }
+    .json-tree-node > summary:hover,
+    .json-tree-node > summary:focus-visible {
+      background: rgba(127, 127, 127, .16);
+      outline: none;
+    }
+    .json-tree-node[open] > summary .json-tree-ellipsis { display: none; }
+    .json-tree-node[open] > summary .json-tree-close-inline { display: none; }
+    .json-tree-children {
+      display: block;
+      margin-left: var(--json-indent);
+      border-left: 1px dotted rgba(127, 127, 127, .42);
+      padding-left: .75rem;
+    }
+    .json-tree-row {
+      display: block;
+      min-height: 1.25em;
+    }
+    .json-string-link {
+      appearance: none;
+      border: 0;
+      border-radius: 2px;
+      padding: 0;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      text-align: left;
+      white-space: inherit;
+      cursor: pointer;
+      text-decoration: underline dotted;
+      text-underline-offset: .2em;
+    }
+    .json-string-link:hover { background: rgba(127, 127, 127, .12); }
+    .json-string-link:focus-visible {
+      outline: 2px solid #0b5ed7;
+      outline-offset: 2px;
+    }
+    .json-string-dialog {
+      box-sizing: border-box;
+      width: min(72rem, calc(100vw - 2rem));
+      max-width: none;
+      max-height: calc(100vh - 2rem);
+      margin: auto;
+      padding: 0;
+      border: 1px solid var(--bs-border-color, #dee2e6);
+      border-radius: .6rem;
+      background: var(--bs-body-bg, #fff);
+      color: var(--bs-body-color, #212529);
+      box-shadow: 0 1rem 3rem rgba(0, 0, 0, .25);
+      font: 14px/1.5 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    .json-string-dialog[open] { display: flex; flex-direction: column; }
+    .json-string-dialog::backdrop { background: rgba(0, 0, 0, .55); }
+    .json-string-header {
+      display: flex;
+      flex-shrink: 0;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: .75rem 1rem;
+      border-bottom: 1px solid var(--bs-border-color, #dee2e6);
+    }
+    .json-string-header h2 { margin: 0; font-size: 1rem; }
+    .json-string-header button {
+      border: 1px solid var(--bs-border-color, #ced4da);
+      border-radius: .35rem;
+      padding: .25rem .65rem;
+      background: var(--bs-tertiary-bg, #f8f9fa);
+      color: inherit;
+      font: inherit;
+      cursor: pointer;
+    }
+    .json-string-content {
+      min-height: 0;
+      margin: 0;
+      padding: 1rem;
+      overflow: auto;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      tab-size: 4;
+      font: 13px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    .json-tree-key { font-weight: 600; }
+    .json-tree-colon { margin-right: .25rem; }
+    .json-tree-close {
+      display: block;
+      margin-left: 1em;
+    }
+    .json-tree-string { color: #0a7b34; }
+    .json-tree-number { color: #0b5ed7; }
+    .json-tree-boolean { color: #8250df; }
+    .json-tree-null { color: #6c757d; font-style: italic; }
+    .json-tree-ellipsis { color: #6c757d; }
+    @media (prefers-color-scheme: dark) {
+      .json-fold-toolbar { background: rgba(33, 37, 41, .96); }
+      .json-tree-string { color: #75d39a; }
+      .json-tree-number { color: #75b7ff; }
+      .json-tree-boolean { color: #c5a3ff; }
+    }
+  </style>
+  <style id="turn-navigation-style">
+    .turn-header {
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      background: var(--bs-body-bg, #fff);
+    }
+    .turn-header .json-fold-toolbar { position: static; }
+    .turn-navigation {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: .75rem;
+      padding: .75rem;
+      border-bottom: 1px solid var(--bs-border-color, #dee2e6);
+      font: 14px/1.4 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    .turn-pagination { display: flex; flex-wrap: wrap; gap: .5rem; }
+    .turn-navigation a, .turn-navigation button {
+      display: inline-block;
+      border: 1px solid var(--bs-border-color, #ced4da);
+      border-radius: .35rem;
+      padding: .4rem .7rem;
+      background: var(--bs-body-bg, #fff);
+      color: #0b5ed7;
+      font: inherit;
+      text-decoration: none;
+    }
+    .turn-navigation a:hover { background: var(--bs-tertiary-bg, #f8f9fa); }
+    .turn-navigation a:focus-visible { outline: 2px solid #0b5ed7; outline-offset: 2px; }
+    .turn-navigation button:disabled { color: #6c757d; opacity: .65; cursor: default; }
+    .turn-position { color: var(--bs-body-color, #212529); }
+  </style>
+</head>
+<body class="bg-body-tertiary">
+  <header class="turn-header">
+    <nav class="turn-navigation" aria-label="Session title navigation">
+      <a href="../index.html">← Back to index</a>
+      <span class="turn-position">Session title</span>
+      <div class="turn-pagination">
+        <a href="turns/turn_01.html" rel="next">Turn 01 →</a>
+      </div>
+    </nav>
+  </header>
+  <main class="container-fluid p-3 p-md-4">
+    <p class="mb-3">This request names the session. It started during turn 1 and finished during turn 2, but it isn't part of the agent's loop, and the agent doesn't wait for it. Its entries say <code>turn 1</code> because this log was written before the logger labelled side requests <code>aux</code>.</p>
+    <div class="card shadow-sm">
+      <div class="card-body p-0">
+        <pre class="m-0 p-3 overflow-auto bg-body font-monospace" style="white-space: pre; tab-size: 4;">[21:06:18.623 +16.350s] ── MODEL ── main · agent title
+  model       opencode/muse-spark-1.3-contributor-free   ✓ contributor-free
+  base url    https://opencode.ai/zen/v1
+  runtime     ai-sdk
+  options     {"store":false,"reasoningEffort":"minimal","reasoningSummary":"auto","include":["reasoning.encrypted_content"]}
+  max output  32,000
+  small       yes
+
+[21:06:18.636 +16.363s] ── REQUEST #1 ── main · turn 1 · purpose title
+  POST https://opencode.ai/zen/v1/responses   (3,242 bytes)
+  headers
+    authorization: Bearer [redacted:api-key]
+    content-type: application/json
+    user-agent: opencode/1.18.30 ai-sdk/provider-utils/4.0.40 runtime/bun/1.4.2
+    x-opencode-client: cli
+    x-opencode-project: a2a53e1ddab537cd5d76936ea01d08393e49937b
+    x-opencode-request: msg_0e0d3e6530019a3ZUdqqkWQtjJ
+    x-opencode-session: ses_f1f2c19bcffe4RjT4me0NBjCNH
+  body
+    {
+      "model": "muse-spark-1.3-contributor-free",
+      "input": [
+        {
+          "role": "developer",
+          "content": "You are a title generator. You output ONLY a thread title. Nothing else.\n\n&lt;task&gt;\nGenerate a brief title that would help the user find this conversation later.\n\nFollow all rules in &lt;rules&gt;\nUse the &lt;examples&gt; so you know what a good title looks like.\nYour output must be:\n- A single line\n- ≤50 characters\n- No explanations\n&lt;/task&gt;\n\n&lt;rules&gt;\n- you MUST use the same language as the user message you are summarizing\n- Title must be grammatically correct and read naturally - no word salad\n- Never include tool names in the title (e.g. \"read tool\", \"bash tool\", \"edit tool\")\n- Focus on the main topic or question the user needs to retrieve\n- Vary your phrasing - avoid repetitive patterns like always starting with \"Analyzing\"\n- When a file is mentioned, focus on WHAT the user wants to do WITH the file, not just that they shared it\n- Keep exact: technical terms, numbers, filenames, HTTP codes\n- Remove: the, this, my, a, an\n- Never assume tech stack\n- Never use tools\n- NEVER respond to questions, just generate a title for the conversation\n- The title should NEVER include \"summarizing\" or \"generating\" when generating a title\n- DO NOT SAY YOU CANNOT GENERATE A TITLE OR COMPLAIN ABOUT THE INPUT\n- Always output something meaningful, even if the input is minimal.\n- If the user message is short or conversational (e.g. \"hello\", \"lol\", \"what's up\", \"hey\"):\n  → create a title that reflects the user's tone or intent (such as Greeting, Quick check-in, Light chat, Intro message, etc.)\n&lt;/rules&gt;\n\n&lt;examples&gt;\n\"debug 500 errors in production\" → Debugging production 500 errors\n\"refactor user service\" → Refactoring user service\n\"why is app.js failing\" → app.js failure investigation\n\"implement rate limiting\" → Rate limiting implementation\n\"how do I connect postgres to my API\" → Postgres API connection\n\"best practices for React hooks\" → React hooks best practices\n\"@src/auth.ts can you add refresh token support\" → Auth refresh token support\n\"@utils/parser.ts this is broken\" → Parser bug fix\n\"look at @config.json\" → Config review\n\"@App.tsx add dark mode toggle\" → Dark mode toggle in App\n&lt;/examples&gt;\n"
+        },
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "input_text",
+              "text": "Generate a title for this conversation:\n"
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "input_text",
+              "text": "&gt; Build a Python CLI called `tsum` in a new folder `tsum` that reads one or more CSV files and prints a summary\n&gt; table: for every numeric column, the count, min, max, mean, and median, rounded to 3\n&gt; decimals. Non-numeric columns report count and number of distinct values. Support\n&gt; `--column NAME` to restrict output, `--json` for machine-readable output, and reading\n&gt; from stdin when no file is given. Use only the standard library. Handle missing files,\n&gt; empty files, and ragged rows with clear error messages and non-zero exit codes. Write\n&gt; pytest tests covering all of it, and a README with usage examples. Make the tests pass. "
+            }
+          ]
+        }
+      ],
+      "max_output_tokens": 32000,
+      "store": false,
+      "include": [
+        "reasoning.encrypted_content"
+      ],
+      "reasoning": {
+        "effort": "minimal",
+        "summary": "auto"
+      },
+      "stream": true
+    }
+
+[21:06:21.415 +19.142s] ── RESPONSE #1 ── main · turn 1 · 200 OK · ttfb 761ms
+  headers
+    cache-control: no-cache
+    cf-placement: remote-ORD
+    cf-ray: a4174aab8fddf481-SLC
+    connection: keep-alive
+    content-type: text/event-stream
+    date: Sun, 27 Sep 2026 03:06:19 GMT
+    server: cloudflare
+    transfer-encoding: chunked
+  stream
+    +0.762 event: response.created
+    +0.762 data: {"type":"response.created","sequence_number":0,"response":{"id":"resp_6ab8882b2a941670d2e34620","object":"response","created_at":1790478379,"status":"in_progress","parallel_tool_calls":true,"temperature":1,"top_p":1,"max_output_tokens":32000,"background":false,"truncation":"disabled","top_logprobs":0,"model":"muse-spark-1.3-contributor-free","error":null,"incomplete_details":null,"output":[],"instructions":null,"tool_choice":"auto","tools":[],"reasoning":{"effort":"minimal","summary":"auto"}}}
+    +0.762 event: response.in_progress
+    +0.762 data: {"type":"response.in_progress","sequence_number":1,"response":{"id":"resp_6ab8882b2a941670d2e34620","object":"response","created_at":1790478379,"status":"in_progress","parallel_tool_calls":true,"temperature":1,"top_p":1,"max_output_tokens":32000,"background":false,"truncation":"disabled","top_logprobs":0,"model":"muse-spark-1.3-contributor-free","error":null,"incomplete_details":null,"output":[],"instructions":null,"tool_choice":"auto","tools":[],"reasoning":{"effort":"minimal","summary":"auto"}}}
+    +0.762 event: response.output_item.added
+    +0.762 data: {"type":"response.output_item.added","sequence_number":2,"output_index":0,"item":{"id":"rs_6ab8882b2a941670d2e34620:rs_01a0e0d3e93972b3afbd245d89f12f5c","type":"reasoning","status":"in_progress","summary":[]}}
+    +2.761 event: response.output_item.done
+    +2.761 data: {"type":"response.output_item.done","sequence_number":3,"output_index":0,"item":{"id":"rs_6ab8882b2a941670d2e34620:rs_01a0e0d3e93972b3afbd245d89f12f5c","type":"reasoning","status":"completed","encrypted_content":"Q-PaDgEy1_5VLthh2uWnKnQQ3hDHht7_kewweRhzFyR7iuaJ3LZ5iFR6oztI9akNmEv9ji0RHNs21cIwzPHhKUob1UHP7Z4pUnE5FvmPBR4-vkSYUMssv0cE7weY98w9n52wTRhDoZcnsLEcEsju4LMtCATq0tN5tFipvgWB-eYnnJaVXBuxuxl32182g3hoqDXehesS1r_xrM0gN6r9WosDKy0wkUE2fCRL2OBoEhw3w4nFKaZKfVNMCxirz9RnGOP7VpOfEwbxAtsSl8HHXj2uruMmXFAPvsz82Ysw-7ZfvRjR78jHQULTK-g5fdsaEh2FdqqNNIGKKXGLwlnFqSFSq96_PJZOM3KsMyB58Fduny1y5WtXRybhrGHWfx7rAlCVxDoscstB-HRq_oDj8lr7oI4hnQy1fxX8cockQovpJ437Pvi-n8NshU5c_NjcwB3u_LKFTq1YP4vwwOoYvba7BC086a1zVKSRSnhD33jKWXFrGYEOW-QqzZxAIMBVTJrEKlld_-SMTfyMvWgm3vdUm6gUbOp8AJR1ru0bgww99gd1cLU2AWhsl_uiVoRy7WMoCrXW5TQjo5KS7EWDr1EyLeRQSoDZm9EFXpaTw51ynVrujY_xGr9WJQQkfXFNdMAAzMFKJ4dpld2siGd_hw2Ah8RwAz0vUWmw5qC_6ZIaWYAn92voQAATDqsB832UCFGOQj-U6nxZJCJIfvkrdkRImx696hZ2KmeO6Ev3iRcn6DmZpgAE0a0gmS-628cuJaxViun0h2sYhq8p7nNR_Vn8gVkexaNqn6ZDkGPoGcFB97HiMNiHqQEhN4Lh-TGwQnwKS7JGM-kirQk3-43OhkG2TkjfnkA4ty4rjP8lSAkhV7i_AAQXA6yhuELdjY68vxMJzaFee7lagIZp-5Ff4x0bOgakD5nllsVqXHlGevl3laIPVMqGT9nO_JJza1YO5LtCaqFuTcepLFaycmDxXmQhA7LxPOvJqfvbihcLbbicjzZgG1AAzlC4TNCmmv4GbC_l6Bi3_5Q02717-b3XVFs3bkBFWc-vkpeLnY4y80MBqWPSYfzlXc4ZHaG4vSigY6mMOvMkLjNOwdBXpQiLRifme3jMFFLVdgqJS3y0h9n6cIUgqIIpEauTZOEIDuk695WXXAkLeNoJ3ERhbSdxoeta98P7P8uLtimSNQqbA0-R3DUzuSJZL55V9_2W6qCTYJUgLXy_nuqfnXIfrrk-YbhUMy2C967PIzhs2NOfQ3oKq3B-LAq1CxTog-5M2abqCDpc_ecOanHwrQLxbQ6_YSqxT5VLiVJ5dREPIzBVgh52ykAd8czD-SoZygRAhTKtM_IJWWgCRna-Cewx2A6KcZhtbCdbQ1oaKYYSFD5Ozp79uONkMyCpPgRYdaAYB9Cvmq2Vj8XZDr4pwUyz8Q","summary":[]}}
+    +2.766 event: response.output_item.added
+    +2.766 data: {"type":"response.output_item.added","sequence_number":4,"output_index":1,"item":{"id":"msg_01a0e0d3f10f73e9b36bbe0106c3f74e","type":"message","status":"in_progress","role":"assistant","content":[]}}
+    +2.766 event: response.content_part.added
+    +2.766 data: {"type":"response.content_part.added","sequence_number":5,"output_index":1,"content_index":0,"item_id":"msg_01a0e0d3f10f73e9b36bbe0106c3f74e","part":{"type":"output_text","text":"","annotations":[],"logprobs":[]}}
+    +2.766 event: response.output_text.delta
+    +2.766 data: {"type":"response.output_text.delta","sequence_number":6,"output_index":1,"content_index":0,"item_id":"msg_01a0e0d3f10f73e9b36bbe0106c3f74e","delta":"Building tsum CSV summary CLI","logprobs":[]}
+    +2.766 event: response.content_part.done
+    +2.766 data: {"type":"response.content_part.done","sequence_number":7,"output_index":1,"content_index":0,"item_id":"msg_01a0e0d3f10f73e9b36bbe0106c3f74e","part":{"type":"output_text","text":"Building tsum CSV summary CLI","annotations":[],"logprobs":[]}}
+    +2.767 event: response.output_item.done
+    +2.767 data: {"type":"response.output_item.done","sequence_number":8,"output_index":1,"item":{"id":"msg_01a0e0d3f10f73e9b36bbe0106c3f74e","type":"message","status":"completed","role":"assistant","content":[{"type":"output_text","text":"Building tsum CSV summary CLI","annotations":[],"logprobs":[]}]}}
+    +2.767 event: response.completed
+    +2.767 data: {"type":"response.completed","sequence_number":9,"response":{"id":"resp_6ab8882b2a941670d2e34620","object":"response","created_at":1790478379,"completed_at":1790478381,"status":"completed","parallel_tool_calls":true,"temperature":1,"top_p":1,"max_output_tokens":32000,"background":false,"truncation":"disabled","top_logprobs":0,"model":"muse-spark-1.3-contributor-free","error":null,"incomplete_details":null,"output":[{"id":"rs_6ab8882b2a941670d2e34620:rs_01a0e0d3e93972b3afbd245d89f12f5c","type":"reasoning","status":"completed","encrypted_content":"Q-PaDgHAjCfPOAZ0zLVzMLUyS-eGcVd87_tTbvzBu2raa8mUlraal54Cp-YWfJKj0zYuLZbzrnl1P-65sL_XSM9oiHn6LQZRmOXST27hj5EJs5V27L5Eb4eHIS62bDPcN8GfKcTpuzyK1A-9V9kydCOrBZDINRHNLazHqN5eFm_3qudr8dut0ad5JzqFkiFX4U5brmj6PoNntlofsUK7EmTpvvFRBJ5eCQb2AHtRY0EhNfRQLnAKYC1m-C6_ZWPAQuAdPfxQl0HJS3SarSW1fWDuOlaR_I-2azrIwRqkBF7B2-JJTty6IfVPuO_lAwqfsr8bkTvi4l3jRNDgniZ0dGhmnpVm5QdmRESAJBufaREiFuO2mMPIMC-bW1EloJ7r5k_pZSEw3lR1cGvg02qRoCnmogOs780VY0jmkYIX9gg_iHLwh8Uh7Ras6jL2b2E0Xs5cV1RGfXBb-e2kZJUj5mJ0q9YgfBcIjl8nua3l1dND4DRv_JFiM8qEolRb2EJ1IzmcAFScvb9ViMxuHPW_SiDTFSlBIjNn-ut_tRWyQ6Z6Y_QGl5EHTZfWPAqHJkhJHpHs8oEOHW33XstBmZr4p-PmHbNWhiUoNkX4E2AHz0iEteL4OgeqjvIWuvWBYIPtsFTh2kKNi5HaqbEx6wQdWvY18uUZIRgboQRAJz2zMlVzUUJc9nC2gZbx2oEeIBZPTaFcras_iT-x_lcAVN4_lKo6GvmQCR3GnDb9qnyPx9uOU6eRIhhD5v2reJdvcrDDxis3vWtj5571zCMIzMtWt4HqnTFAuRQ0afv8jC63vHovB0x5nrokAtqC2ZtDJHLVt8e_RRECfTw3vM_0BT-KcuvqjK55ejwUTT9gTq6Vx6cMPwDNj38jOFdgEPBpJFNC0iz0kgyLsvZ-Ku_wUn-57SMLGNWQhRF7H23cHTYUYyuOxiZaDMljvzV_oPoM_ymMpBSHr52rzPTEGwI2AN5SlClIW5DlBf-ALbaVHUhdS6iZqOOcBEVOQm5hJRqDHjrgjft8qcKhLyFdZAG0a7ALhJJxQ1-dXKCPDbebHdfTIJ5QnlXV_o7HR3JwtOO5kQ5tBzPDrz8HBR8rljDyestiSlgr75Up99qGEg2VbbfQRs-Ca-k7FGqIDph7KYplspiq4g2--TadhXmP7SFWJ0gMPP6kFqK6ZuDzO3mZD7uc4Za_x9KVsC0afgw8qAqsP2TjMsTsbajcr_vgANQU1FVLZMgXBqN_AZ46Q_aausVggwEZ6sSOJyoNTsfFDfh_bm1YibjBnj6qtHSKhS-5NRFmlv0OvFpzU6bJXOnVtoUjwhMxogtJB-iOPj1aHMMcmq6O7BaFysvxtTfm-aoDkMXZiz5fX-IeiVaQzgotHxMMVzrhIBmKscMiNTOL8uKV7OnkpzbWvT9bQiJXm8PJOQ","summary":[]},{"id":"msg_01a0e0d3f10f73e9b36bbe0106c3f74e","type":"message","status":"completed","role":"assistant","content":[{"type":"output_text","text":"Building tsum CSV summary CLI","annotations":[],"logprobs":[]}]}],"usage":{"input_tokens":689,"output_tokens":171,"total_tokens":860,"input_tokens_details":{"cached_tokens":0},"output_tokens_details":{"reasoning_tokens":155}},"instructions":null,"tool_choice":"auto","tools":[],"reasoning":{"effort":"minimal","summary":"auto"}}}
+    +2.778 event: ping
+    +2.778 data: {"type":"ping","cost":"0"}
+  end · 2.78s · 6,907 bytes · 11 events
+</pre>
+      </div>
+    </div>
+  </main>
+
+  <script id="json-fold-script">
+  (() => {
+    "use strict";
+
+    function matchingEnd(text, start) {
+      const first = text[start];
+      if (first !== "{" && first !== "[") return -1;
+      const stack = [first === "{" ? "}" : "]"];
+      let inString = false;
+      let escaped = false;
+      for (let i = start + 1; i < text.length; i++) {
+        const ch = text[i];
+        if (inString) {
+          if (escaped) escaped = false;
+          else if (ch === "\\") escaped = true;
+          else if (ch === '"') inString = false;
+          continue;
+        }
+        if (ch === '"') inString = true;
+        else if (ch === "{") stack.push("}");
+        else if (ch === "[") stack.push("]");
+        else if (ch === "}" || ch === "]") {
+          if (!stack.length || stack[stack.length - 1] !== ch) return -1;
+          stack.pop();
+          if (!stack.length) return i;
+        }
+      }
+      return -1;
+    }
+
+    function findJsonRanges(text) {
+      const ranges = [];
+      for (let i = 0; i < text.length; i++) {
+        if (text[i] !== "{" && text[i] !== "[") continue;
+        const end = matchingEnd(text, i);
+        if (end < 0) continue;
+        const candidate = text.slice(i, end + 1);
+        try {
+          JSON.parse(candidate);
+          ranges.push([i, end + 1]);
+          i = end;
+        } catch (_) {}
+      }
+      return ranges;
+    }
+
+    // Parse JSON into a structural tree while retaining exact source ranges for every token.
+    function parseExactJson(text) {
+      let i = 0;
+      const ws = () => { while (i < text.length && /[\x20\t\r\n]/.test(text[i])) i++; };
+
+      function stringToken() {
+        const start = i;
+        if (text[i++] !== '"') throw new Error("string");
+        let escaped = false;
+        while (i < text.length) {
+          const ch = text[i++];
+          if (escaped) escaped = false;
+          else if (ch === "\\") escaped = true;
+          else if (ch === '"') return { start, end: i };
+        }
+        throw new Error("unterminated string");
+      }
+
+      function primitive(type) {
+        const start = i;
+        if (type === "string") {
+          const t = stringToken();
+          return { type, start: t.start, end: t.end };
+        }
+        if (type === "number") {
+          const m = text.slice(i).match(/^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?/);
+          if (!m) throw new Error("number");
+          i += m[0].length;
+          return { type, start, end: i };
+        }
+        const lit = type === "boolean" ? (text.startsWith("true", i) ? "true" : "false") : "null";
+        if (!text.startsWith(lit, i)) throw new Error(type);
+        i += lit.length;
+        return { type, start, end: i };
+      }
+
+      function value() {
+        ws();
+        const start = i;
+        const ch = text[i];
+        if (ch === "{") {
+          i++; ws();
+          const props = [];
+          if (text[i] !== "}") {
+            while (true) {
+              ws();
+              const key = stringToken();
+              ws();
+              if (text[i++] !== ":") throw new Error("colon");
+              const val = value();
+              props.push({ key, value: val });
+              ws();
+              if (text[i] === ",") { i++; continue; }
+              break;
+            }
+          }
+          if (text[i++] !== "}") throw new Error("object close");
+          return { type: "object", start, end: i, children: props };
+        }
+        if (ch === "[") {
+          i++; ws();
+          const items = [];
+          if (text[i] !== "]") {
+            while (true) {
+              items.push(value());
+              ws();
+              if (text[i] === ",") { i++; continue; }
+              break;
+            }
+          }
+          if (text[i++] !== "]") throw new Error("array close");
+          return { type: "array", start, end: i, children: items };
+        }
+        if (ch === '"') return primitive("string");
+        if (ch === "t" || ch === "f") return primitive("boolean");
+        if (ch === "n") return primitive("null");
+        return primitive("number");
+      }
+
+      const root = value();
+      ws();
+      if (i !== text.length) throw new Error("trailing content");
+      return root;
+    }
+
+    function span(cls, value) {
+      const el = document.createElement("span");
+      if (cls) el.className = cls;
+      el.textContent = value;
+      return el;
+    }
+
+    function renderString(source, cls) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "json-string-link " + cls;
+      button.textContent = source;
+      button.title = "Preview rendered string";
+      button.setAttribute("aria-haspopup", "dialog");
+      button.setAttribute("aria-controls", "json-string-preview");
+      button.addEventListener("click", () => {
+        // Decode exactly one JSON layer and keep log content as text, including HTML.
+        content.textContent = JSON.parse(source);
+        dialog.showModal();
+        content.scrollTop = 0;
+        content.scrollLeft = 0;
+      });
+      return button;
+    }
+
+    function renderTree(jsonText) {
+      let ast;
+      try { ast = parseExactJson(jsonText); }
+      catch (_) { return document.createTextNode(jsonText); }
+
+      function renderValue(node) {
+        if (node.type === "string") {
+          return renderString(jsonText.slice(node.start, node.end), "json-tree-primitive json-tree-string");
+        }
+        if (node.type !== "object" && node.type !== "array") {
+          return span("json-tree-primitive json-tree-" + node.type, jsonText.slice(node.start, node.end));
+        }
+
+        const isObj = node.type === "object";
+        const openChar = isObj ? "{" : "[";
+        const closeChar = isObj ? "}" : "]";
+        const details = document.createElement("details");
+        details.className = "json-tree-node";
+        details.dataset.jsonSource = jsonText.slice(node.start, node.end);
+
+        const summary = document.createElement("summary");
+        summary.append(
+          span("json-tree-open", openChar),
+          span("json-tree-ellipsis", node.children.length ? " ... " : ""),
+          span("json-tree-close-inline", closeChar)
+        );
+        details.append(summary);
+
+        if (node.children.length) {
+          const children = document.createElement("div");
+          children.className = "json-tree-children";
+
+          node.children.forEach((entry, index) => {
+            const row = document.createElement("div");
+            row.className = "json-tree-row";
+            if (isObj) {
+              row.append(
+                renderString(jsonText.slice(entry.key.start, entry.key.end), "json-tree-key"),
+                span("json-tree-colon", ": "),
+                renderValue(entry.value)
+              );
+            } else {
+              row.append(renderValue(entry));
+            }
+            if (index < node.children.length - 1) row.append(span("json-tree-comma", ","));
+            children.append(row);
+          });
+          details.append(children);
+        }
+        details.append(span("json-tree-close", closeChar));
+        return details;
+      }
+
+      const tree = document.createElement("span");
+      tree.className = "json-tree";
+      tree.dataset.jsonSource = jsonText;
+      tree.append(renderValue(ast));
+      return tree;
+    }
+
+    function enhancePre(pre) {
+      const original = pre.textContent;
+      const ranges = findJsonRanges(original);
+      if (!ranges.length) return 0;
+
+      const fragment = document.createDocumentFragment();
+      let cursor = 0;
+      for (const [start, end] of ranges) {
+        if (start > cursor) fragment.append(document.createTextNode(original.slice(cursor, start)));
+        fragment.append(renderTree(original.slice(start, end)));
+        cursor = end;
+      }
+      if (cursor < original.length) fragment.append(document.createTextNode(original.slice(cursor)));
+      pre.replaceChildren(fragment);
+      pre.dataset.originalText = original;
+      return ranges.length;
+    }
+
+    function foldLog(pre) {
+      const original = pre.textContent;
+      // Only unindented log headers start entries; timestamps inside tool output stay in their body.
+      const headers = Array.from(original.matchAll(/^(?:\[\d{2}:\d{2}:\d{2}\.\d{3} \+\d+(?:\.\d+)?s\] ── |═{8} (?:ocmini session log|session end) ═{8})[^\r\n]*/gm));
+      if (!headers.length) return;
+
+      const entries = document.createElement("div");
+      entries.className = "log-entries";
+      if (headers[0].index > 0) {
+        const prefix = document.createElement("pre");
+        prefix.className = "log-entry-body";
+        prefix.textContent = original.slice(0, headers[0].index);
+        entries.append(prefix);
+      }
+
+      headers.forEach((header, index) => {
+        const entry = document.createElement("details");
+        entry.className = "log-entry";
+
+        const summary = document.createElement("summary");
+        summary.textContent = header[0];
+
+        const body = document.createElement("pre");
+        body.className = "log-entry-body";
+        body.textContent = original.slice(header.index + header[0].length, headers[index + 1]?.index ?? original.length);
+        entry.append(summary, body);
+        entries.append(entry);
+      });
+      pre.replaceWith(entries);
+    }
+
+    function setAll(selector, collapsed) {
+      document.querySelectorAll(selector).forEach((node) => {
+        node.open = !collapsed;
+      });
+    }
+
+    document.querySelectorAll("main pre").forEach(foldLog);
+    let count = 0;
+    document.querySelectorAll("main pre").forEach((pre) => { count += enhancePre(pre); });
+    if (!count && !document.querySelector(".log-entry")) return;
+
+    const dialog = document.createElement("dialog");
+    dialog.id = "json-string-preview";
+    dialog.className = "json-string-dialog";
+    dialog.setAttribute("aria-labelledby", "json-string-title");
+
+    const header = document.createElement("div");
+    header.className = "json-string-header";
+
+    const title = document.createElement("h2");
+    title.id = "json-string-title";
+    title.textContent = "Rendered string";
+
+    const close = document.createElement("button");
+    close.type = "button";
+    close.textContent = "Close";
+    close.autofocus = true;
+    close.addEventListener("click", () => dialog.close());
+
+    const content = document.createElement("pre");
+    content.className = "json-string-content";
+    content.tabIndex = 0;
+
+    header.append(title, close);
+    dialog.append(header, content);
+    dialog.addEventListener("click", (event) => {
+      if (event.target !== dialog) return;
+      const bounds = dialog.getBoundingClientRect();
+      if (event.clientX < bounds.left || event.clientX > bounds.right ||
+          event.clientY < bounds.top || event.clientY > bounds.bottom) dialog.close();
+    });
+    dialog.addEventListener("close", () => { content.textContent = ""; });
+    document.body.append(dialog);
+
+    // Log entries and all nested JSON objects and arrays start collapsed.
+    setAll(".json-tree-node", true);
+
+    const toolbar = document.createElement("div");
+    toolbar.className = "json-fold-toolbar";
+    toolbar.setAttribute("role", "toolbar");
+    toolbar.setAttribute("aria-label", "Log controls");
+
+    [
+      { label: "Expand all entries", selector: ".log-entry", collapsed: false },
+      { label: "Collapse all entries", selector: ".log-entry", collapsed: true },
+      { label: "Expand all JSON", selector: ".json-tree-node", collapsed: false },
+      { label: "Collapse all JSON", selector: ".json-tree-node", collapsed: true },
+    ].filter((control) => document.querySelector(control.selector)).forEach((control) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = control.label;
+      button.addEventListener("click", () => setAll(control.selector, control.collapsed));
+      toolbar.append(button);
+    });
+    document.querySelector(".turn-header").append(toolbar);
+  })();
+  </script>
+  <script src="prompt-highlight.js"></script>
+  <script src="turn-diagram.js"></script>
+</body>
+</html>

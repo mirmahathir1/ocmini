@@ -234,6 +234,7 @@
     </nav>
   </header>
   <main class="container-fluid p-3 p-md-4">
+    <p class="mb-3">A <a href="../02_session_title.html">session title request</a> also ran during this turn, but it isn't part of the agent's loop.</p>
     <div class="card shadow-sm">
       <div class="card-body p-0">
         <pre class="m-0 p-3 overflow-auto bg-body font-monospace" style="white-space: pre; tab-size: 4;">[21:06:18.592 +16.319s] ── TURN 1 ── main · agent build · opencode/muse-spark-1.3-contributor-free
@@ -264,63 +265,6 @@
     question * → allow
     plan_enter * → allow
     external_directory /Users/mirmahathirmohammad/.local/share/opencode/tool-output/* → allow
-
-[21:06:18.623 +16.350s] ── MODEL ── main · agent title
-  model       opencode/muse-spark-1.3-contributor-free   ✓ contributor-free
-  base url    https://opencode.ai/zen/v1
-  runtime     ai-sdk
-  options     {"store":false,"reasoningEffort":"minimal","reasoningSummary":"auto","include":["reasoning.encrypted_content"]}
-  max output  32,000
-  small       yes
-
-[21:06:18.636 +16.363s] ── REQUEST #1 ── main · turn 1 · purpose title
-  POST https://opencode.ai/zen/v1/responses   (3,242 bytes)
-  headers
-    authorization: Bearer [redacted:api-key]
-    content-type: application/json
-    user-agent: opencode/1.18.30 ai-sdk/provider-utils/4.0.40 runtime/bun/1.4.2
-    x-opencode-client: cli
-    x-opencode-project: a2a53e1ddab537cd5d76936ea01d08393e49937b
-    x-opencode-request: msg_0e0d3e6530019a3ZUdqqkWQtjJ
-    x-opencode-session: ses_f1f2c19bcffe4RjT4me0NBjCNH
-  body
-    {
-      "model": "muse-spark-1.3-contributor-free",
-      "input": [
-        {
-          "role": "developer",
-          "content": "You are a title generator. You output ONLY a thread title. Nothing else.\n\n&lt;task&gt;\nGenerate a brief title that would help the user find this conversation later.\n\nFollow all rules in &lt;rules&gt;\nUse the &lt;examples&gt; so you know what a good title looks like.\nYour output must be:\n- A single line\n- ≤50 characters\n- No explanations\n&lt;/task&gt;\n\n&lt;rules&gt;\n- you MUST use the same language as the user message you are summarizing\n- Title must be grammatically correct and read naturally - no word salad\n- Never include tool names in the title (e.g. \"read tool\", \"bash tool\", \"edit tool\")\n- Focus on the main topic or question the user needs to retrieve\n- Vary your phrasing - avoid repetitive patterns like always starting with \"Analyzing\"\n- When a file is mentioned, focus on WHAT the user wants to do WITH the file, not just that they shared it\n- Keep exact: technical terms, numbers, filenames, HTTP codes\n- Remove: the, this, my, a, an\n- Never assume tech stack\n- Never use tools\n- NEVER respond to questions, just generate a title for the conversation\n- The title should NEVER include \"summarizing\" or \"generating\" when generating a title\n- DO NOT SAY YOU CANNOT GENERATE A TITLE OR COMPLAIN ABOUT THE INPUT\n- Always output something meaningful, even if the input is minimal.\n- If the user message is short or conversational (e.g. \"hello\", \"lol\", \"what's up\", \"hey\"):\n  → create a title that reflects the user's tone or intent (such as Greeting, Quick check-in, Light chat, Intro message, etc.)\n&lt;/rules&gt;\n\n&lt;examples&gt;\n\"debug 500 errors in production\" → Debugging production 500 errors\n\"refactor user service\" → Refactoring user service\n\"why is app.js failing\" → app.js failure investigation\n\"implement rate limiting\" → Rate limiting implementation\n\"how do I connect postgres to my API\" → Postgres API connection\n\"best practices for React hooks\" → React hooks best practices\n\"@src/auth.ts can you add refresh token support\" → Auth refresh token support\n\"@utils/parser.ts this is broken\" → Parser bug fix\n\"look at @config.json\" → Config review\n\"@App.tsx add dark mode toggle\" → Dark mode toggle in App\n&lt;/examples&gt;\n"
-        },
-        {
-          "role": "user",
-          "content": [
-            {
-              "type": "input_text",
-              "text": "Generate a title for this conversation:\n"
-            }
-          ]
-        },
-        {
-          "role": "user",
-          "content": [
-            {
-              "type": "input_text",
-              "text": "&gt; Build a Python CLI called `tsum` in a new folder `tsum` that reads one or more CSV files and prints a summary\n&gt; table: for every numeric column, the count, min, max, mean, and median, rounded to 3\n&gt; decimals. Non-numeric columns report count and number of distinct values. Support\n&gt; `--column NAME` to restrict output, `--json` for machine-readable output, and reading\n&gt; from stdin when no file is given. Use only the standard library. Handle missing files,\n&gt; empty files, and ragged rows with clear error messages and non-zero exit codes. Write\n&gt; pytest tests covering all of it, and a README with usage examples. Make the tests pass. "
-            }
-          ]
-        }
-      ],
-      "max_output_tokens": 32000,
-      "store": false,
-      "include": [
-        "reasoning.encrypted_content"
-      ],
-      "reasoning": {
-        "effort": "minimal",
-        "summary": "auto"
-      },
-      "stream": true
-    }
 
 [21:06:19.290 +17.017s] ── CONTEXT ── main
   rules       /Users/mirmahathirmohammad/Documents/ocmini/packages/opencode/AGENTS.md, /Users/mirmahathirmohammad/Documents/ocmini/AGENTS.md
@@ -1207,5 +1151,6 @@
   })();
   </script>
   <script src="../prompt-highlight.js"></script>
+  <script src="../turn-diagram.js"></script>
 </body>
 </html>
