@@ -16,7 +16,7 @@ FROM alpine:3.22
 
 RUN apk add --no-cache bash python3
 
-COPY main.py system_prompt.py bash_description.py printer.py utils.py html_logger.py /app/
+COPY main.py system_prompt.py bash_description.py printer.py utils.py html_logger.py tools.py history.py /app/
 
 # Session logs are written here; mount ocmicro/logs over it to see them on the host.
 ENV OCMICRO_LOG_DIR=/app/logs

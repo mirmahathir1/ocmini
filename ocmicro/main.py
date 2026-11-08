@@ -20,15 +20,13 @@ Environment:
 import json
 import os
 import secrets
-import subprocess
-import sys
-import tempfile
 import urllib.request
 
 import html_logger
 import printer
+import tools
 import utils
-from bash_description import BASH_DESCRIPTION
+from history import History
 from printer import DIM, RESET
 from system_prompt import SYSTEM_PROMPT
 
@@ -37,119 +35,21 @@ MODEL = os.environ.get("OCMICRO_MODEL", "gpt-6-astra")
 MODEL_NAME = "GPT-6 Astra"
 EFFORT = os.environ.get("OCMICRO_EFFORT", "medium")
 MAX_OUTPUT_TOKENS = 32000
-MAX_LINES = 2000
-MAX_BYTES = 50 * 1024
-TMP = os.path.join(tempfile.gettempdir(), "ocmicro")
 LOG_DIR = os.environ.get("OCMICRO_LOG_DIR", os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs"))
 
 
-
-def bash_tool():
-    return {
-        "type": "function",
-        "name": "bash",
-        "description": BASH_DESCRIPTION.format(
-            os=sys.platform,
-            shell="bash",
-            tmp=TMP,
-            max_lines=MAX_LINES,
-            max_bytes=MAX_BYTES,
-        ),
-        "parameters": {
-            "properties": {
-                "command": {"description": "The command to execute", "type": "string"},
-                "workdir": {
-                    "description": "The working directory to run the command in. Defaults to the current directory. Use this instead of 'cd' commands.",
-                    "type": "string",
-                },
-            },
-            "required": ["command"],
-            "type": "object",
-        },
-        "strict": False,
-    }
-
-
-def tail(text, max_lines, max_bytes):
-    # Keep the end of the output, as opencode's shell tool does.
-    lines = text.split("\n")
-    if len(lines) <= max_lines and len(text.encode()) <= max_bytes:
-        return text, False
-    out, used = [], 0
-    for line in reversed(lines):
-        if len(out) >= max_lines:
-            break
-        size = len(line.encode()) + (1 if out else 0)
-        if used + size > max_bytes:
-            if not out:
-                out.append(line.encode()[-max_bytes:].decode(errors="ignore"))
-            break
-        out.insert(0, line)
-        used += size
-    return "\n".join(out), True
-
-
-def run_bash(args):
-    command = args.get("command")
-    if not isinstance(command, str) or not command:
-        return "Error: The command argument is required."
-    cwd = os.path.abspath(os.path.expanduser(args.get("workdir") or os.getcwd()))
-    if not os.path.isdir(cwd):
-        return f"Error: workdir does not exist: {cwd}"
-
-    os.makedirs(TMP, exist_ok=True)
-    fd, path = tempfile.mkstemp(prefix="tool_", suffix=".txt", dir=TMP)
-    with os.fdopen(fd, "wb") as sink:
-        subprocess.run(
-            command,
-            shell=True,
-            executable="bash",
-            cwd=cwd,
-            stdin=subprocess.DEVNULL,
-            stdout=sink,
-            stderr=subprocess.STDOUT,
-        )
-
-    size = os.path.getsize(path)
-    with open(path, "rb") as f:
-        f.seek(max(0, size - MAX_BYTES * 2))
-        raw = f.read().decode(errors="replace")
-    output, cut = tail(raw, MAX_LINES, MAX_BYTES)
-    cut = cut or size > MAX_BYTES * 2
-    if cut:
-        output = f"...output truncated...\n\nFull output saved to: {path}\n\n" + output
-    else:
-        os.remove(path)
-    if not output:
-        output = "(no output)"
-    return output
-
-
-def call_tool(call):
-    if call["name"] != "bash":
-        return f"Error: Unknown tool '{call['name']}'. The only available tool is bash."
-    try:
-        args = json.loads(call.get("arguments") or "{}")
-    except ValueError as e:
-        return f"Error: Invalid JSON arguments for bash: {e}"
-    if not isinstance(args, dict):
-        return "Error: bash arguments must be a JSON object."
-
-    return run_bash(args)
-
-
-def step(history, tools, session, key):
+def step(history, schemas, session, key):
     """One provider turn: send the request, print the reply, return its output items."""
     body = {
         "model": MODEL,
-        "input": history,
+        "input": history.items,
         "max_output_tokens": MAX_OUTPUT_TOKENS,
         "store": False,
         "include": ["reasoning.encrypted_content"],
         "prompt_cache_key": session,
         "reasoning": {"effort": EFFORT, "summary": "auto"},
         "text": {"verbosity": "low"},
-        "tools": tools,
+        "tools": schemas,
         "tool_choice": "auto",
     }
     request = urllib.request.Request(
@@ -177,28 +77,15 @@ def step(history, tools, session, key):
     return items
 
 
-def replay(item):
-    # store: false means the server keeps nothing, so each output item is sent back
-    # in the shape opencode's AI SDK uses, without server-side ids.
-    if item["type"] == "reasoning" and item.get("encrypted_content"):
-        return {"type": "reasoning", "encrypted_content": item["encrypted_content"], "summary": item.get("summary", [])}
-    if item["type"] == "function_call":
-        return {"type": "function_call", "call_id": item["call_id"], "name": item["name"], "arguments": item["arguments"]}
-    if item["type"] == "message":
-        text = "".join(part.get("text", "") for part in item.get("content", []) if part.get("type") == "output_text")
-        return {"role": "assistant", "content": [{"type": "output_text", "text": text}]} if text else None
-    return None
-
-
-def turn(history, tools, session, key, prompt):
+def turn(history, schemas, session, key, prompt):
     """Run steps until the model answers without calling a tool, like opencode's session loop."""
-    history.append({"role": "user", "content": [{"type": "input_text", "text": prompt}]})
+    history.add_user_prompt(prompt)
     html_logger.user_prompt(prompt)
     while True:
         html_logger.turn_start()
         # Send the whole conversation so far to the model and get back its reply items:
         # reasoning, text, and any bash calls it wants run before it answers.
-        items = step(history, tools, session, key)
+        items = step(history, schemas, session, key)
         # Pick out the tool calls the model wants run.
         calls =[item for item in items if item["type"] == "function_call"]
         for call in calls:
@@ -206,17 +93,14 @@ def turn(history, tools, session, key, prompt):
         outputs = []
         for call in calls:
             html_logger.tool_call(call)
-            outputs.append(call_tool(call))
+            outputs.append(tools.call_tool(call))
             html_logger.tool_result(call, outputs[-1])
         for output in outputs:
             printer.preview(output)
         # Commit the step only once it is complete, so an interrupt never leaves a
         # function_call without its output in the history.
-        history.extend(filter(None, map(replay, items)))
-        history.extend(
-            {"type": "function_call_output", "call_id": call["call_id"], "output": output}
-            for call, output in zip(calls, outputs)
-        )
+        history.add_model_output(items)
+        history.add_from_outputs(calls, outputs)
         html_logger.turn_end(calls)
         # No tool calls means the model has given its final answer, so the turn is over.
         if not calls:
@@ -224,26 +108,22 @@ def turn(history, tools, session, key, prompt):
 
 
 def main():
-    os.makedirs(TMP, exist_ok=True)
+    os.makedirs(tools.TMP, exist_ok=True)
     key = utils.api_key()
     session = "ses_" + secrets.token_hex(12)
-    system = SYSTEM_PROMPT
-    history = [{"role": "developer", "content": system + "\n" + utils.environment(MODEL)}]
-    tools = [bash_tool()]
+    history = History()
+    history.initialize_history(SYSTEM_PROMPT, utils.environment(MODEL))
+    schemas = [tools.bash_tool()]
 
-    log = html_logger.start(LOG_DIR, session, MODEL, EFFORT, BASE_URL, tools)
+    log = html_logger.start(LOG_DIR, session, MODEL, EFFORT, BASE_URL, schemas)
 
     print(f"{DIM}ocmicro · openai/{MODEL} · effort {EFFORT} · {os.getcwd()}")
     print(f"log {log}{RESET}")
     # The loop only ends by exception (Ctrl-D, Ctrl-C or an error), so the end page
     # is written on the way out.
-    try:
-        while True:
-            prompt = input("\n> ").strip()
-            turn(history, tools, session, key, prompt)
-    except BaseException as error:
-        html_logger.session_end(error)
-        raise
+    while True:
+        prompt = input("\n> ").strip()
+        turn(history, schemas, session, key, prompt)
 
 
 if __name__ == "__main__":
