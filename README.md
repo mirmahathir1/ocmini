@@ -5,68 +5,48 @@
 ## Abstract
 
 LLM-based coding agents such as Claude Code, Codex, and Cursor have become everyday
-tools for software development, yet their internal workings are rarely documented,
-and several of the most widely used are closed source. We study these internals
-through OpenCode, an open-source coding agent. We first reduce OpenCode to *ocmini*,
+tools for software development. I study these internals
+through OpenCode, an open-source coding agent. I first reduce OpenCode to *ocmini*,
 a minimal fork that keeps only the components essential to the agent loop, and
 instrument it to record every model request, model response, and tool execution.
-From these traces we derive the agent's execution model: how the system prompt is
+From these traces I derive the agent's execution model: how the system prompt is
 assembled, how a single user prompt unfolds into a sequence of model calls, what the
-conversation history contains, and how the agent decides that a task is complete. We
+conversation history contains, and how the agent decides that a task is complete. I
 then validate this understanding by building *ocmicro*, a from-scratch agent of about
 430 lines of Python that reproduces the same request protocol.
 
 ## 1 Introduction
 
-Coding agents now write, run, and test code on behalf of their users. Despite their
-popularity, the mechanics behind them, such as what the model is actually sent, who
-decides when work is finished, and how state persists across calls, are largely
-hidden behind closed implementations. This report asks a simple question: *what does
-a coding agent actually do?*
-
-We answer it by reverse-engineering OpenCode, an open-source coding agent, in three
-stages. First, with the help of Claude Code, we stripped OpenCode down to **ocmini**
+I answer it by reverse-engineering OpenCode, an open-source coding agent, in three
+stages. First, with the help of Claude Code, I stripped OpenCode down to **ocmini**
 (this repository; the modified agent lives in [packages/opencode/](packages/opencode/)),
-removing features until only the core agent loop remained. Second, we added a logger
+removing features until only the core agent loop remained. Second, I added a logger
 that records every interaction between the agent, the model, and the host machine,
 and rendered one complete session as browsable HTML pages
 ([session_log/](session_log/), also published at
 [mirmahathir.com/ocmini](https://mirmahathir.com/ocmini/)). In that session, the
 agent built `tsum`, a small Python CLI that summarizes CSV files, in 25 model calls.
-Third, using only what the traces revealed, we built **ocmicro** ([ocmicro/](ocmicro/)),
+Third, using only what the traces revealed, I built **ocmicro** ([ocmicro/](ocmicro/)),
 again with the help of Claude Code: a new agent written from scratch that issues the
 same requests OpenCode does.
-
-This report makes the following contributions:
-
-- A minimal, instrumented fork of OpenCode whose traces expose every prompt, reply,
-  and tool result (§2).
-- A description of how the agent's prompt is assembled from a fixed system prompt,
-  project instructions, and on-demand skills (§3).
-- An execution model of sessions, turns, and steps, including the history that is
-  replayed on every request and the criterion that ends a turn (§4).
-- An account of two less visible mechanisms: stateless requests with encrypted
-  reasoning, and auxiliary model calls such as title generation (§5).
-- ocmicro, a from-scratch reimplementation that confirms these findings, together
-  with observations on where the design breaks down (§6).
 
 ## 2 Methodology
 
 **ocmini.** OpenCode supports many providers, interfaces, and features that are
-irrelevant to understanding the agent loop. We removed them iteratively until the
+irrelevant to understanding the agent loop. I removed them iteratively until the
 remaining code was small enough to follow end to end, while keeping the agent fully
 functional. ocmini talks to a single model and runs from the command line. The
 [specification](ocmini-spec.md) lists what was kept, what was removed, and how the
 result is tested.
 
-**Tracing.** We instrumented ocmini to write a plain-text log of each session: every
+**Tracing.** I instrumented ocmini to write a plain-text log of each session: every
 HTTP request to the model, the streamed response, each tool call and its output,
-permission decisions, and auxiliary requests. We then split one session's log into
+permission decisions, and auxiliary requests. I then split one session's log into
 HTML pages, one per model call, annotated so that each element of a prompt is
 attributed to the party that wrote it (the agent, the user, the model, or a tool).
 The [log documentation](session_log/README.md) describes the format.
 
-**ocmicro.** To test whether our understanding was complete, we wrote ocmicro, a
+**ocmicro.** To test whether my understanding was complete, I wrote ocmicro, a
 standalone agent in about 430 lines of standard-library Python, excluding its HTML
 logger. It exposes a single `bash` tool, sends the same stateless request that
 OpenCode sends to OpenAI reasoning models, and loops until the model stops calling
@@ -89,20 +69,8 @@ OpenCode accordingly sends its system prompt with the `developer` role.
 OpenCode's system prompt (reproduced in full in [Appendix A](#appendix-a-system-prompt))
 has four parts: (i) a fixed set of instructions, (ii) a description of the runtime
 environment, (iii) the contents of any `AGENTS.md` files, and (iv) an index of
-available skills. Table 1 summarizes the fixed instructions.
-
-*Table 1: Sections of OpenCode's fixed instructions.*
-
-| Section | Purpose |
-|---|---|
-| Communication: Tone and Style | Keep replies short; talk to the user through text, never through tools or code comments |
-| Behavior: Truthfulness | Do not guess URLs; prefer accuracy over agreeing with the user |
-| Behavior: Verification | Verify solutions by execution; base claims on inspected evidence |
-| Behavior: Preciseness | Prefer editing to creating files; honor user corrections across turns |
-| Tool Use: File Operations | Use dedicated `read`, `edit`, and `write` tools instead of shell commands |
-| Tool Use: `TodoWrite`, `Task`, Parallelism | Track work in a todo list, delegate to subagents, and issue independent tool calls in parallel |
-| Tool Use: Local Computation, OpenCode Specifics | Compute with `python3 -c`; follow redirects; respect `plan` mode |
-| Code Style: Comments | Keep comments concise; reason privately rather than in comments |
+available skills. The fixed instructions govern the assistant's communication style,
+truthfulness, verification, and tool use.
 
 The environment block that follows gives the model its working directory, the
 workspace root, whether the directory is a git repository, the platform, and the
@@ -110,7 +78,7 @@ current date.
 
 One instruction stands out. The developer repeatedly steers the assistant toward
 dedicated tools (`read`, `edit`, `write`) and away from equivalent shell commands
-(`cat`, `sed`, heredocs), reserving `bash` for genuine system operations. We see two
+(`cat`, `sed`, heredocs), reserving `bash` for genuine system operations. I see two
 reasons for this design. First, shell commands are not portable: their behavior
 differs across operating systems and shells, whereas a dedicated tool is implemented
 by the agent itself, so the agent's author controls exactly what executes and can
@@ -155,9 +123,9 @@ Use the skill tool to load a skill when a task matches its description.
 
 ### 4.1 Turns and Steps
 
-We use the terms in Table 2 throughout.
+I use the terms in Table 1 throughout.
 
-*Table 2: Units of agent execution.*
+*Table 1: Units of agent execution.*
 
 | Term | Definition |
 |---|---|
@@ -177,14 +145,20 @@ user prompt and its work.
 The agent records every interaction in an ordered list, the *history*, which grows
 with each step. It contains six kinds of items:
 
-| Item | Produced by |
-|---|---|
-| System prompt | The agent |
-| User prompt | The user |
-| Reasoning | The model |
-| Tool call (name and arguments) | The model |
-| Tool result | The host machine |
-| Assistant message | The model |
+| Item | Produced by | Identified by |
+|---|---|---|
+| System prompt | The agent | `role: developer` |
+| User prompt | The user | `role: user` |
+| Reasoning | The model | `type: reasoning` |
+| Tool call (name and arguments) | The model | `type: function_call` |
+| Tool result | The host machine | `type: function_call_output` |
+| Assistant message | The model | `role: assistant` |
+
+Only three of these items carry a `role` attribute: the system prompt (`developer`),
+the user prompt (`user`), and the assistant message (`assistant`), which correspond
+to the three roles of §3.1. The remaining items have no role; each is identified by
+its `type` instead, and a tool result is linked to the call it answers through a
+shared `call_id`.
 
 ### 4.3 Requests and Responses
 
@@ -248,7 +222,7 @@ history. ocmicro adopts the shell tool's policy for its single `bash` tool.
 OpenCode ends a turn at the first step whose response contains no tool call. The
 agent imposes no fixed number of steps; the turn continues for as many steps as the
 model keeps requesting tools. ocmicro implements the same rule. The completion
-decision thus rests entirely with the model, a design whose fragility we examine in
+decision thus rests entirely with the model, a design whose fragility I examine in
 §6.2.
 
 ## 5 Hidden Mechanisms
@@ -294,22 +268,11 @@ refines this loop rather than replacing it.
 ### 6.2 When the Model Never Stops
 
 Because termination depends on the model (§4.5), a model that never produces a
-tool-free response never finishes. We observed exactly this when we ran the agent
+tool-free response never finishes. I observed exactly this when I ran the agent
 against a local 8B-parameter model: it issued tool call after tool call without ever
-returning a final answer, and the turn looped indefinitely. We hypothesize that as
+returning a final answer, and the turn looped indefinitely. I hypothesize that as
 the history grew, the small model lost track of the task and could no longer judge
-when it was done. A practical agent should guard against this failure, for example
-with a step limit.
-
-## 7 Conclusion
-
-A coding agent is, at its core, a loop: send the history to the model, execute the
-tools it requests, append the results, and repeat until the model replies without a
-tool call. Around this loop, OpenCode layers a carefully engineered system prompt,
-project instructions, on-demand skills, output truncation, encrypted reasoning
-replay, and auxiliary requests. By stripping OpenCode down to ocmini, tracing its
-traffic, and rebuilding the loop as ocmicro, we found that each of these mechanisms
-can be understood, and reproduced, in isolation.
+when it was done.
 
 ## Artifacts
 
