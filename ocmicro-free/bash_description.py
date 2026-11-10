@@ -1,0 +1,47 @@
+# opencode's src/tool/shell/shell.txt rendered for a POSIX shell by
+# src/tool/shell/prompt.ts. Lines that point at the read/edit/write/glob/grep
+# tools are reworded for a bash-only agent.
+BASH_DESCRIPTION = """Executes a given bash command in a persistent shell session, ensuring proper handling and security measures.
+
+Be aware: OS: {os}, Shell: {shell}
+
+All commands run in the current working directory by default. Use the `workdir` parameter if you need to run a command in a different directory. AVOID using `cd <directory> && <command>` patterns - use `workdir` instead.
+
+Use `{tmp}` for temporary work outside the workspace. This directory has already been created, already exists, and is pre-approved for external directory access.
+
+IMPORTANT: This is your only tool. Use it for terminal operations like npm, docker, etc., and for file operations (reading, writing, editing, searching, finding files).
+
+Before executing the command, please follow these steps:
+
+1. Directory Verification:
+   - If the command will create new directories or files, first use `ls` to verify the parent directory exists and is the correct location
+   - For example, before running "mkdir foo/bar", first use `ls foo` to check that "foo" exists and is the intended parent directory
+
+2. Command Execution:
+   - Always quote file paths that contain spaces with double quotes (e.g., rm "path with spaces/file.txt")
+   - Examples of proper quoting:
+     - mkdir "/Users/name/My Documents" (correct)
+     - mkdir /Users/name/My Documents (incorrect - will fail)
+     - python "/path/with spaces/script.py" (correct)
+     - python /path/with spaces/script.py (incorrect - will fail)
+   - After ensuring proper quoting, execute the command.
+   - Capture the output of the command.
+
+Usage notes:
+  - The command argument is required.
+  - If the output exceeds {max_lines} lines or {max_bytes} bytes, it will be truncated and the full output will be written to a file. You can use `sed -n` to read specific sections or `grep` to search the full content. Do NOT use `head`, `tail`, or other truncation commands to limit output; the full output will already be captured to a file for more precise searching.
+
+  - Communicate by outputting text directly, NOT with echo/printf.
+  - When issuing multiple commands:
+    - If the commands are independent and can run in parallel, make multiple bash tool calls in a single message.
+    - If the commands depend on each other and must run sequentially, use a single Bash call with '&&' to chain them together. For instance, if one operation must complete before another starts (like mkdir before cp), run these operations sequentially instead.
+    - Use ';' only when you need to run commands sequentially but don't care if earlier commands fail
+    - DO NOT use newlines to separate commands (newlines are ok in quoted strings)
+  - AVOID using `cd <directory> && <command>`. Use the `workdir` parameter to change directories instead.
+    <good-example>
+    Use workdir="/foo/bar" with command: pytest tests
+    </good-example>
+    <bad-example>
+    cd /foo/bar && pytest tests
+    </bad-example>
+"""
