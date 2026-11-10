@@ -274,6 +274,25 @@ returning a final answer, and the turn looped indefinitely. I hypothesize that a
 the history grew, the small model lost track of the task and could no longer judge
 when it was done.
 
+### 6.3 Memorized Tools Override Instructions
+
+Models appear to be fine-tuned on the tool calls of particular agents, and the habits
+they learn can override what they are told. I ran ocmicro, with its single `bash`
+tool, against OpenAI's open-weight gpt-oss-120b served by Groq. To write files, the
+model repeatedly ran `apply_patch`, a file-editing command from OpenAI's Codex agent
+that appeared nowhere in my system prompt or tool list and was not installed. It also
+formatted its calls the way Codex does: it closed the `command` argument with `"]`,
+as if the command were a list of strings as in Codex's shell tool, rather than the
+single string my tool declares. The result was invalid JSON, which Groq rejected.
+Neither instructions nor a smaller prompt changed this behavior. I replayed the same
+request 30 times under five configurations: the original system prompt with and
+without an instruction not to use `apply_patch`, a shortened system prompt, a
+shortened system prompt and tool description, and a minimal prompt that again forbade
+`apply_patch`. The model called `apply_patch` in all 30 attempts, and 25 of those
+calls were malformed. This suggests that models learn tool-calling conventions during
+fine-tuning, and that a weaker model may follow its memorized tools over the tools and
+instructions it is actually given.
+
 ## Artifacts
 
 - [ocmini-spec.md](ocmini-spec.md): what ocmini keeps, what it removes, and how the
